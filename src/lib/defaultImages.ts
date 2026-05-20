@@ -1,0 +1,88 @@
+import type { StorageImage } from "../types/storiq";
+
+/** Starter image library — replace via Master Data import before client demos. */
+export const starterImages: StorageImage[] = [
+  {
+    id: "vehicle-storage",
+    category: "Vehicle Storage",
+    imageUrl: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80",
+    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/vehicle-storage/",
+    altText: "Vehicle storage spaces",
+    type: "storage_type",
+  },
+  {
+    id: "boat-storage",
+    category: "Boat Storage",
+    imageUrl: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/boat-storage/",
+    altText: "Boat storage parking",
+    type: "storage_type",
+  },
+  {
+    id: "rv-storage",
+    category: "RV Storage",
+    imageUrl: "https://images.unsplash.com/photo-1545161296-d9c2c241f2ad?auto=format&fit=crop&w=900&q=80",
+    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/rv-storage/",
+    altText: "RV storage parking",
+    type: "storage_type",
+  },
+  {
+    id: "truck-storage",
+    category: "Truck Storage",
+    imageUrl: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=900&q=80",
+    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/truck-storage/",
+    altText: "Truck storage parking",
+    type: "storage_type",
+  },
+  {
+    id: "business-storage",
+    category: "Business Storage",
+    imageUrl: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=900&q=80",
+    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/business-storage/",
+    altText: "Business storage units",
+    type: "storage_type",
+  },
+  {
+    id: "climate-controlled-storage",
+    category: "Climate-Controlled Storage",
+    imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80",
+    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/",
+    altText: "Climate-controlled storage units",
+    type: "storage_type",
+  },
+  {
+    id: "non-climate-controlled-storage",
+    category: "Non Climate-Controlled Storage",
+    imageUrl: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80",
+    altText: "Non climate-controlled storage units",
+    type: "storage_type",
+  },
+  {
+    id: "student-storage",
+    category: "Student Storage",
+    imageUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=900&q=80",
+    altText: "Student storage boxes",
+    type: "storage_type",
+  },
+  {
+    id: "military-storage",
+    category: "Military Storage",
+    imageUrl: "https://images.unsplash.com/photo-1549921296-3a6b683f062f?auto=format&fit=crop&w=900&q=80",
+    altText: "Military storage packing",
+    type: "storage_type",
+  },
+  {
+    id: "retail-storage",
+    category: "Retail Storage",
+    imageUrl: "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=900&q=80",
+    altText: "Retail inventory storage",
+    type: "storage_type",
+  },
+  {
+    id: "indoor-storage",
+    category: "Indoor Storage",
+    imageUrl: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
+    altText: "Indoor self storage hallway",
+    type: "storage_type",
+  },
+];

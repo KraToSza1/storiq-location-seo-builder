@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/brand-logo-header.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#dbd0c4" />
+    <script>
+      (function () {
+        var key = "storiq-theme";
+        var mode =
+          localStorage.getItem(key) ||
+          localStorage.getItem("storeiq-theme") ||
+          localStorage.getItem("StorIQ-theme") ||
+          "system";
+        if (!localStorage.getItem(key) && mode) {
+          localStorage.setItem(key, mode);
+        }
+        var theme =
+          mode === "sunset"
+            ? "sunset"
+            : mode === "dark"
+              ? "dark"
+              : mode === "light"
+                ? "light"
+                : window.matchMedia("(prefers-color-scheme: dark)").matches
+                  ? "dark"
+                  : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+        var colors = { light: "#dbd0c4", dark: "#101511", sunset: "#0c1519" };
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", colors[theme]);
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Internal StorIQ admin tool for creating and auditing Storagely-ready location SEO pages."
+    />
+    <title>StorIQ Location SEO Builder</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

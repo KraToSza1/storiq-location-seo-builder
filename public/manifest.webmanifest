@@ -1,0 +1,17 @@
+{
+  "name": "StorIQ Location SEO Builder",
+  "short_name": "StorIQ",
+  "description": "Internal PWA for creating, validating, auditing, and exporting Storagely-ready local SEO location pages.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#dbd0c4",
+  "theme_color": "#dbd0c4",
+  "icons": [
+    {
+      "src": "/favicon-32.png",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
