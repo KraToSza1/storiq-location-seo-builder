@@ -836,6 +836,39 @@ a.storiq-btn.storiq-btn-primary:focus-visible {
   padding-right: 0.25rem;
 }
 
+.storiq-map-preview-wrap {
+  width: 100%;
+}
+
+.storiq-map-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 280px;
+  max-height: min(28rem, 55vh);
+  overflow: hidden;
+  border-radius: var(--storiq-radius-lg);
+  border: 1px solid var(--storiq-border);
+  background: var(--storiq-surface-muted);
+  box-shadow: var(--storiq-shadow-sm);
+}
+
+.storiq-map-preview iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.storiq-map-preview--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
 .storiq-table {
   width: 100%;
   border-collapse: collapse;

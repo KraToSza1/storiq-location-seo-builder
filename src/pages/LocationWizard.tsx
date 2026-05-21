@@ -119,7 +119,7 @@ export default function LocationWizard() {
 
     if (step === 2) {
       return (
-        <WizardStep title="Step 3: Google Maps" description="Generate a map from the facility address or paste the official Google Maps embed iframe.">
+        <WizardStep title="Step 3: Google Maps" description="Preview the embedded map while you work. It fills from your Step 2 address, or paste an official Google embed to override.">
           <GoogleMapsEmbedInput project={project} onChange={(googleMaps) => setProject((current) => ({ ...current, googleMaps }))} />
         </WizardStep>
       );

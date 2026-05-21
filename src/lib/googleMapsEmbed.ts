@@ -17,6 +17,36 @@ export const buildGoogleMapsIframeMarkup = (query: string, title?: string): stri
   return `<iframe src="${src}" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="${safeTitle}"></iframe>`;
 };
 
+export const isAllowedGoogleMapsSrc = (src: string): boolean => {
+  try {
+    const host = new URL(src).hostname.toLowerCase();
+    return host === "maps.google.com" || host === "www.google.com" || host === "google.com" || host.endsWith(".google.com");
+  } catch {
+    return false;
+  }
+};
+
+/** Src URL for live preview: saved iframe first, otherwise address-based embed. */
+export const getMapPreviewSrc = (
+  project: {
+    locationIdentity: { facilityName: string; city: string; state: string; zipCode: string };
+    existingContent: { address: string };
+  },
+  iframeCode: string,
+): string | undefined => {
+  const parsed = parseGoogleMapsIframe(iframeCode);
+  if (parsed.detectedSrc && isAllowedGoogleMapsSrc(parsed.detectedSrc)) {
+    return parsed.detectedSrc;
+  }
+
+  const address =
+    project.existingContent.address.trim() ||
+    [project.locationIdentity.city, project.locationIdentity.state, project.locationIdentity.zipCode].filter(Boolean).join(", ");
+
+  const query = buildMapsQuery(address, project.locationIdentity.facilityName);
+  return query ? buildGoogleMapsEmbedSrc(query) : undefined;
+};
+
 export const buildGoogleMapsFromProject = (project: {
   locationIdentity: { facilityName: string; city: string; state: string; zipCode: string };
   existingContent: { address: string };
