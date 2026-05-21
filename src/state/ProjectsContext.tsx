@@ -12,6 +12,7 @@ import {
   parseFacilitiesCsv,
   upsertFacility,
 } from "../lib/facilityLibrary";
+import { starterImages } from "../lib/defaultImages";
 import {
   defaultImages,
   mergeImages,
@@ -20,6 +21,7 @@ import {
   parseImagesMarkdown,
   upsertImage,
 } from "../lib/imageLibrary";
+import { sampleFacilities } from "../lib/sampleFacilities";
 import { buildAiPrompt } from "../lib/promptBuilder";
 import { cloneProject, defaultSettings, mergeWithProjectDefaults } from "../lib/projectDefaults";
 import { runSEOAudit } from "../lib/seoAudit";
@@ -164,16 +166,48 @@ export const prepareProject = (
   };
 };
 
+const usesLegacyRemoteImage = (url?: string): boolean => Boolean(url && /unsplash\.com|:\/\/example\.com/i.test(url));
+
+const syncFacilitiesWithLocalImages = (stored: NearbyFacility[]): NearbyFacility[] => {
+  if (!stored.some((f) => usesLegacyRemoteImage(f.imageUrl))) {
+    return stored;
+  }
+  const starterById = new Map(sampleFacilities.map((f) => [f.id, f]));
+  return stored.map((facility) => {
+    const starter = starterById.get(facility.id);
+    if (starter?.imageUrl) {
+      return { ...facility, imageUrl: starter.imageUrl };
+    }
+    return facility;
+  });
+};
+
+const syncImagesWithLocalLibrary = (stored: StorageImage[]): StorageImage[] => {
+  if (!stored.some((image) => usesLegacyRemoteImage(image.imageUrl))) {
+    return stored;
+  }
+  const starterById = new Map(starterImages.map((image) => [image.id, image]));
+  const synced = stored.map((image) => {
+    const starter = starterById.get(image.id);
+    return starter ? { ...image, imageUrl: starter.imageUrl, altText: image.altText || starter.altText } : image;
+  });
+  const knownIds = new Set(synced.map((image) => image.id));
+  const missing = starterImages.filter((image) => !knownIds.has(image.id));
+  return [...synced, ...missing];
+};
+
 const loadFacilities = (): NearbyFacility[] => {
   const stored = readJson<(Partial<NearbyFacility> & { url?: string })[]>(FACILITIES_KEY, defaultFacilities);
   const normalized = stored.map(normalizeFacility).filter((facility): facility is NearbyFacility => Boolean(facility));
-  return normalized.length > 0 ? normalized : defaultFacilities;
+  const list = normalized.length > 0 ? normalized : defaultFacilities;
+  return syncFacilitiesWithLocalImages(list);
 };
 
 const loadImages = (): StorageImage[] => {
   const stored = readJson<Partial<StorageImage>[]>(IMAGES_KEY, defaultImages);
   const normalized = stored.map(normalizeImage).filter((image): image is StorageImage => Boolean(image));
-  return normalized.length > 0 ? normalized : defaultImages;
+  const list = normalized.length > 0 ? normalized : defaultImages;
+  return syncImagesWithLocalLibrary(list);
 };
 
 const loadProjects = (facilities: NearbyFacility[], images: StorageImage[]): LocationProject[] => {

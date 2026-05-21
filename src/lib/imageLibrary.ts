@@ -135,15 +135,15 @@ export const imageWarnings = (images: StorageImage[]): string[] => {
 };
 
 export const imageCsvTemplate = `id,category,imageUrl,destinationUrl,altText,type
-vehicle-storage,Vehicle Storage,https://example.com/vehicle.jpg,https://www.mygarageselfstorage.com/storage-types/vehicle-storage/,Vehicle storage units,storage_type
-facility-exterior,Facility Exterior,https://example.com/exterior.jpg,,My Garage facility exterior in City State,facility_location`;
+vehicle-storage,Vehicle Storage,/media-library/storage-types/vehicle_storage.png,https://www.mygarageselfstorage.com/storage-types/vehicle-storage/,Vehicle storage,storage_type
+climate-controlled-storage,Climate-Controlled Storage,/media-library/storage-types/climate_controlled_storage.png,https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/,Climate-controlled storage,storage_type`;
 
 export const imageMarkdownTemplate = `# Storagely Media Library (import template)
 
 | image number | image name | image URL | destination | ALT tag |
 | --- | --- | --- | --- | --- |
-| 1 | Vehicle Storage | https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80 | https://www.mygarageselfstorage.com/storage-types/vehicle-storage/ | Vehicle storage spaces |
-| 2 | Climate-Controlled Storage | https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80 | https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/ | Climate-controlled storage units |
+| 1 | Vehicle Storage | /media-library/storage-types/vehicle_storage.png | https://www.mygarageselfstorage.com/storage-types/vehicle-storage/ | Vehicle storage |
+| 2 | Climate-Controlled Storage | /media-library/storage-types/climate_controlled_storage.png | https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/ | Climate-controlled storage |
 `;
 
 const parseMarkdownTable = (markdown: string): StorageImage[] => {

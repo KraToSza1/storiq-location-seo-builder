@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="storiq-brand-lockup">
               <div className="storiq-brand-logo-wrap">
                 <img
-                  src="/brand-logo-header.png"
+                  src="/brand/brand-logo-header.png"
                   alt="StorIQ"
                   className="storiq-brand-logo"
                   width={118}

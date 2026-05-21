@@ -32,7 +32,7 @@ export default function StorageTypeSelector({
   return (
     <div className="storiq-stack">
       <p className="storiq-help">
-        Uses demo images from the master library. Import your Storagely Media Library markdown or CSV in Master Data to swap in client-specific URLs.
+        Images load from <code className="storiq-code">public/media-library/storage-types/</code>. Add or replace files there, then refresh Master Data if needed.
       </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {storageImages.map((image) => {

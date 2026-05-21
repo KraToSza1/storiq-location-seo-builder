@@ -5,9 +5,10 @@ import zlib
 import struct
 from pathlib import Path
 
-EPS = Path(__file__).resolve().parent.parent / "public" / "brand-logo-source.eps"
-OUT_PNG = Path(__file__).resolve().parent.parent / "public" / "brand-logo.png"
-OUT_SVG = Path(__file__).resolve().parent.parent / "public" / "brand-logo.svg"
+BRAND_DIR = Path(__file__).resolve().parent.parent / "public" / "brand"
+EPS = BRAND_DIR / "brand-logo-source.eps"
+OUT_PNG = BRAND_DIR / "brand-logo.png"
+OUT_SVG = BRAND_DIR / "brand-logo.svg"
 
 
 def main() -> None:
@@ -69,7 +70,7 @@ def main() -> None:
 
     # Simple SVG wrapper referencing PNG (works everywhere in the app)
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="My Garage logo">
-  <image href="/brand-logo.png" width="{width}" height="{height}" preserveAspectRatio="xMidYMid meet"/>
+  <image href="/brand/brand-logo.png" width="{width}" height="{height}" preserveAspectRatio="xMidYMid meet"/>
 </svg>'''
     OUT_SVG.write_text(svg, encoding="utf-8")
     print(f"OK: {width}x{height} -> {OUT_PNG.name}, {OUT_SVG.name}")
