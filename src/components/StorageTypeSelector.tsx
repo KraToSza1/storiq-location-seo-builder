@@ -30,7 +30,11 @@ export default function StorageTypeSelector({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="storiq-stack">
+      <p className="storiq-help">
+        Uses demo images from the master library. Import your Storagely Media Library markdown or CSV in Master Data to swap in client-specific URLs.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {storageImages.map((image) => {
         const selected = selectedIds.includes(image.id);
         const linkable = isLinkableStorageType(image.category);
@@ -69,6 +73,7 @@ export default function StorageTypeSelector({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

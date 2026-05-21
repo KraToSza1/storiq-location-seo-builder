@@ -16,16 +16,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <header className="storiq-header">
         <div className="storiq-header-inner">
           <div className="storiq-brand">
-            <img
-              src="/brand-logo-header.png"
-              alt="StorIQ"
-              className="storiq-brand-logo"
-              width={118}
-              height={40}
-            />
-            <div>
-              <div className="storiq-brand-title">StorIQ</div>
-              <div className="storiq-brand-subtitle">Location SEO Builder · My Garage Self Storage</div>
+            <div className="storiq-brand-lockup">
+              <div className="storiq-brand-logo-wrap">
+                <img
+                  src="/brand-logo-header.png"
+                  alt="StorIQ"
+                  className="storiq-brand-logo"
+                  width={118}
+                  height={40}
+                />
+              </div>
+              <p className="storiq-brand-subtitle">Location SEO Builder · My Garage Self Storage</p>
             </div>
           </div>
           <div className="storiq-header-actions">

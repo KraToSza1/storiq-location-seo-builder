@@ -20,7 +20,6 @@ export default function ExistingContentParser({
       officeHours: content.officeHours || extracted.officeHours || "",
       features: content.features.length ? content.features : extracted.features,
       storageTypes: content.storageTypes.length ? content.storageTypes : extracted.storageTypes,
-      uniqueSellingPoints: content.uniqueSellingPoints.length ? content.uniqueSellingPoints : extracted.uniqueSellingPoints,
     });
   };
 
@@ -31,7 +30,7 @@ export default function ExistingContentParser({
         value={content.rawContent}
         onChange={(rawContent) => onChange({ ...content, rawContent })}
         required
-        placeholder="Paste the current location page content, facility brief, hours, feature list, and notes here."
+        placeholder="Paste the current location page content. Include Facility Features and Unit Rental Grid sections when available."
       />
       <button type="button" onClick={extract} className="storiq-btn storiq-btn-ghost">
         <Wand2 className="h-4 w-4" aria-hidden="true" />
@@ -39,14 +38,25 @@ export default function ExistingContentParser({
       </button>
       <div className="grid gap-4 md:grid-cols-2">
         <TextInput label="Address" value={content.address} onChange={(address) => onChange({ ...content, address })} required />
-        <TextInput label="Phone" value={content.phone} onChange={(phone) => onChange({ ...content, phone })} required />
+        <TextInput
+          label="Phone"
+          value={content.phone}
+          onChange={(phone) => onChange({ ...content, phone })}
+          required
+          placeholder="+1 555 123 4567"
+          helpText="International numbers with a leading + are supported."
+        />
         <TextInput label="Access hours" value={content.accessHours} onChange={(accessHours) => onChange({ ...content, accessHours })} />
         <TextInput label="Office hours" value={content.officeHours} onChange={(officeHours) => onChange({ ...content, officeHours })} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <ListTextarea label="Features list" value={content.features} onChange={(features) => onChange({ ...content, features })} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ListTextarea
+          label="Features & Amenities"
+          value={content.features}
+          onChange={(features) => onChange({ ...content, features })}
+          helpText="Auto-filled from Facility Features and Unit Rental Grid in pasted content."
+        />
         <ListTextarea label="Storage types offered" value={content.storageTypes} onChange={(storageTypes) => onChange({ ...content, storageTypes })} />
-        <ListTextarea label="Unique selling points" value={content.uniqueSellingPoints} onChange={(uniqueSellingPoints) => onChange({ ...content, uniqueSellingPoints })} />
       </div>
     </div>
   );

@@ -7,12 +7,17 @@ const LINKABLE_CATEGORIES = ["Vehicle Storage", "Business Storage", "Climate-Con
 
 const headerAliases: Record<string, keyof StorageImage | "type"> = {
   id: "id",
+  number: "id",
+  imagenumber: "id",
+  "#": "id",
   category: "category",
   name: "category",
+  imagename: "category",
   imageurl: "imageUrl",
   image: "imageUrl",
   url: "imageUrl",
   destinationurl: "destinationUrl",
+  destination: "destinationUrl",
   linkurl: "destinationUrl",
   alttext: "altText",
   alt: "altText",
@@ -132,5 +137,104 @@ export const imageWarnings = (images: StorageImage[]): string[] => {
 export const imageCsvTemplate = `id,category,imageUrl,destinationUrl,altText,type
 vehicle-storage,Vehicle Storage,https://example.com/vehicle.jpg,https://www.mygarageselfstorage.com/storage-types/vehicle-storage/,Vehicle storage units,storage_type
 facility-exterior,Facility Exterior,https://example.com/exterior.jpg,,My Garage facility exterior in City State,facility_location`;
+
+export const imageMarkdownTemplate = `# Storagely Media Library (import template)
+
+| image number | image name | image URL | destination | ALT tag |
+| --- | --- | --- | --- | --- |
+| 1 | Vehicle Storage | https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80 | https://www.mygarageselfstorage.com/storage-types/vehicle-storage/ | Vehicle storage spaces |
+| 2 | Climate-Controlled Storage | https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80 | https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/ | Climate-controlled storage units |
+`;
+
+const parseMarkdownTable = (markdown: string): StorageImage[] => {
+  const lines = markdown.split(/\r?\n/).map((line) => line.trim());
+  const tableLines = lines.filter((line) => line.startsWith("|") && !/^\|[-\s|:]+\|$/.test(line));
+  if (tableLines.length < 2) return [];
+
+  const headers = tableLines[0]
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter(Boolean)
+    .map((cell) => normalizeHeader(cell));
+  const mappedHeaders = headers.map((header) => headerAliases[header]).filter(Boolean);
+
+  if (!mappedHeaders.includes("category") || !mappedHeaders.includes("imageUrl")) {
+    return [];
+  }
+
+  const images: StorageImage[] = [];
+  tableLines.slice(1).forEach((rowLine) => {
+    const cells = rowLine
+      .split("|")
+      .map((cell) => cell.trim())
+      .filter(Boolean);
+
+    const partial: Partial<StorageImage> = {};
+    headers.forEach((header, index) => {
+      const key = headerAliases[header];
+      if (key && cells[index]) {
+        (partial as Record<string, string>)[key] = cells[index];
+      }
+    });
+
+    const image = normalizeImage(partial);
+    if (image) images.push(image);
+  });
+
+  return images;
+};
+
+const parseMarkdownFieldBlocks = (markdown: string): StorageImage[] => {
+  const blocks = markdown.split(/\n(?=\d+\.\s+)/).map((block) => block.trim()).filter(Boolean);
+  const images: StorageImage[] = [];
+
+  blocks.forEach((block) => {
+    const titleMatch = block.match(/^\d+\.\s*(.+)$/m);
+    const category = titleMatch?.[1]?.trim();
+    if (!category) return;
+
+    const readField = (labels: string[]): string | undefined => {
+      const pattern = new RegExp(`(?:${labels.join("|")})\\s*[:\\-]\\s*(.+)$`, "im");
+      return block.match(pattern)?.[1]?.trim();
+    };
+
+    const image = normalizeImage({
+      id: readField(["image number", "number", "#"]),
+      category,
+      imageUrl: readField(["image url", "url"]),
+      destinationUrl: readField(["destination", "destination url", "link"]),
+      altText: readField(["alt tag", "alt", "alt text"]),
+      type: readField(["type", "image type"]) as StorageImage["type"] | undefined,
+    });
+
+    if (image) images.push(image);
+  });
+
+  return images;
+};
+
+/** Parse Storagely CMS media-library markdown (table or numbered field blocks). */
+export const parseImagesMarkdown = (markdown: string): { images: StorageImage[]; result: ImageImportResult } => {
+  const fromTable = parseMarkdownTable(markdown);
+  const fromBlocks = parseMarkdownFieldBlocks(markdown);
+  const images = mergeImages([], [...fromTable, ...fromBlocks]);
+  const skipped = Math.max(0, fromTable.length + fromBlocks.length - images.length);
+
+  if (images.length === 0) {
+    return {
+      images: [],
+      result: {
+        imported: 0,
+        skipped: 0,
+        errors: ["No images found. Use a markdown table or numbered blocks with image name, URL, destination, and ALT."],
+      },
+    };
+  }
+
+  return {
+    images,
+    result: { imported: images.length, skipped, errors: [] },
+  };
+};
 
 export const isLinkableStorageType = (category: string): boolean => LINKABLE_CATEGORIES.includes(category);

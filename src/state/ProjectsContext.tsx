@@ -17,6 +17,7 @@ import {
   mergeImages,
   normalizeImage,
   parseImagesCsv,
+  parseImagesMarkdown,
   upsertImage,
 } from "../lib/imageLibrary";
 import { buildAiPrompt } from "../lib/promptBuilder";
@@ -55,6 +56,7 @@ interface ProjectsContextValue {
   resetFacilities: () => void;
   exportFacilitiesJson: () => string;
   importImagesCsv: (csv: string) => ImageImportResult;
+  importImagesMarkdown: (markdown: string) => ImageImportResult;
   saveImage: (image: StorageImage) => void;
   deleteImage: (id: string) => void;
   resetImages: () => void;
@@ -364,6 +366,21 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
     [facilities, refreshProjects],
   );
 
+  const importImagesMarkdown = useCallback(
+    (markdown: string) => {
+      const parsed = parseImagesMarkdown(markdown);
+      if (parsed.images.length > 0) {
+        setImages((current) => {
+          const merged = mergeImages(current, parsed.images);
+          refreshProjects(facilities, merged);
+          return merged;
+        });
+      }
+      return parsed.result;
+    },
+    [facilities, refreshProjects],
+  );
+
   const saveImage = useCallback(
     (image: StorageImage) => {
       setImages((current) => {
@@ -423,6 +440,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       resetFacilities,
       exportFacilitiesJson,
       importImagesCsv,
+      importImagesMarkdown,
       saveImage,
       deleteImage,
       resetImages,
@@ -440,6 +458,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       images,
       importFacilitiesCsv,
       importImagesCsv,
+      importImagesMarkdown,
       importProjects,
       projects,
       resetFacilities,

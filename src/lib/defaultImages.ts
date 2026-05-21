@@ -1,6 +1,9 @@
 import type { StorageImage } from "../types/storiq";
 
-/** Starter image library — replace via Master Data import before client demos. */
+/**
+ * Demo/mock storage images (Unsplash) for workflow testing.
+ * Replace via Master Data CSV or Storagely Media Library markdown import before client launch.
+ */
 export const starterImages: StorageImage[] = [
   {
     id: "vehicle-storage",

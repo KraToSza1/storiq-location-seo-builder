@@ -15,6 +15,7 @@ import PromptPreview from "../components/PromptPreview";
 import { StatusBadge } from "../components/StatusBadge";
 import FacilityLocationImageSelector from "../components/FacilityLocationImageSelector";
 import StorageTypeSelector from "../components/StorageTypeSelector";
+import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { buildPrimaryKeyword } from "../lib/projectDefaults";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject, ProjectStatus } from "../types/storiq";
@@ -73,7 +74,7 @@ export default function LocationWorkspace() {
         locationIdentity: nextIdentity,
         seo: {
           ...current.seo,
-          primaryKeyword: shouldAutoKeyword ? nextDefault : current.seo.primaryKeyword,
+          primaryKeyword: normalizePrimaryKeyword(shouldAutoKeyword ? nextDefault : current.seo.primaryKeyword),
         },
       };
     });
@@ -114,8 +115,14 @@ export default function LocationWorkspace() {
               <TextInput
                 label="Primary keyword"
                 value={project.seo.primaryKeyword}
-                onChange={(primaryKeyword) => save((current) => ({ ...current, seo: { ...current.seo, primaryKeyword } }))}
+                onChange={(primaryKeyword) =>
+                  save((current) => ({
+                    ...current,
+                    seo: { ...current.seo, primaryKeyword: normalizePrimaryKeyword(primaryKeyword) },
+                  }))
+                }
                 required
+                helpText="Stored and displayed in lowercase only."
               />
               <label className="block">
                 <span className="storiq-label">Project status</span>

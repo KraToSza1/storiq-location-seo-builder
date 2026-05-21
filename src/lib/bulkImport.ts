@@ -1,3 +1,4 @@
+import { normalizePrimaryKeyword } from "./keywordUtils";
 import { buildPrimaryKeyword, createLocationProject } from "./projectDefaults";
 import { parseCsvRows } from "./facilityLibrary";
 import type { BulkCsvRow, LocationProject } from "../types/storiq";
@@ -59,7 +60,7 @@ export const parseBulkCsv = (csv: string): { rows: BulkCsvRow[]; missingColumns:
       zipCode: record.zipCode || "",
       facilityName: record.facilityName || "",
       storagelyPageUrl: record.storagelyPageUrl || "",
-      primaryKeyword: record.primaryKeyword || "",
+      primaryKeyword: normalizePrimaryKeyword(record.primaryKeyword || ""),
       address: record.address || "",
       phone: record.phone || "",
       valid: errors.length === 0,
@@ -87,7 +88,7 @@ export const bulkRowToProject = (row: BulkCsvRow, settings: AppSettings): Locati
     },
     seo: {
       ...project.seo,
-      primaryKeyword: keyword,
+      primaryKeyword: normalizePrimaryKeyword(keyword),
     },
     existingContent: {
       ...project.existingContent,

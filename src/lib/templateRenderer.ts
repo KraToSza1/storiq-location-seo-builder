@@ -284,8 +284,8 @@ export const renderStoragelyHtml = (
   const storageCards = selectedStorageImages(project, images).map((image) => renderStorageCard(image, project)).join("\n");
   const nearbyCards = selectedFacilities(project, facilities).map(renderNearbyCard).join("\n");
   const valueProps =
-    existingContent.uniqueSellingPoints.length > 0
-      ? existingContent.uniqueSellingPoints
+    existingContent.features.length > 0
+      ? existingContent.features.slice(0, 6)
       : ["Convenient local storage options", "Helpful facility team", "Clean, practical storage features"];
 
   return `${renderScopedCss()}

@@ -9,6 +9,7 @@ import NearbyLocationSelector from "../components/NearbyLocationSelector";
 import RequiredFieldBadge from "../components/RequiredFieldBadge";
 import StorageTypeSelector from "../components/StorageTypeSelector";
 import WizardStep from "../components/WizardStep";
+import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { buildPrimaryKeyword, createLocationProject } from "../lib/projectDefaults";
 import { getProjectValidation } from "../lib/validators";
 import { useProjects } from "../state/ProjectsContext";
@@ -51,7 +52,7 @@ export default function LocationWizard() {
         locationIdentity: nextIdentity,
         seo: {
           ...current.seo,
-          primaryKeyword: shouldAutoKeyword ? nextDefault : current.seo.primaryKeyword,
+          primaryKeyword: normalizePrimaryKeyword(shouldAutoKeyword ? nextDefault : current.seo.primaryKeyword),
         },
       };
     });
@@ -90,9 +91,14 @@ export default function LocationWizard() {
               <TextInput
                 label="Primary keyword"
                 value={project.seo.primaryKeyword}
-                onChange={(primaryKeyword) => setProject((current) => ({ ...current, seo: { ...current.seo, primaryKeyword } }))}
+                onChange={(primaryKeyword) =>
+                  setProject((current) => ({
+                    ...current,
+                    seo: { ...current.seo, primaryKeyword: normalizePrimaryKeyword(primaryKeyword) },
+                  }))
+                }
                 required
-                helpText="Defaults to: self storage units in {City}, {State}. You can edit it manually."
+                helpText="Always lowercase. Defaults to: self storage units in {city}, {state}."
               />
             </div>
           </div>
@@ -102,7 +108,7 @@ export default function LocationWizard() {
 
     if (step === 1) {
       return (
-        <WizardStep title="Step 2: Existing Location Content" description="Paste the brief, then extract basic phone, address, hours, storage type, and feature clues.">
+        <WizardStep title="Step 2: Existing Location Content" description="Paste the brief, then extract phone, address, hours, storage types, and Features & Amenities from Facility Features / Unit Rental Grid.">
           <ExistingContentParser
             content={project.existingContent}
             onChange={(existingContent) => setProject((current) => ({ ...current, existingContent }))}
@@ -113,7 +119,7 @@ export default function LocationWizard() {
 
     if (step === 2) {
       return (
-        <WizardStep title="Step 3: Google Maps Embed" description="Paste the full iframe code and review basic embed quality checks.">
+        <WizardStep title="Step 3: Google Maps" description="Generate a map from the facility address or paste the official Google Maps embed iframe.">
           <GoogleMapsEmbedInput project={project} onChange={(googleMaps) => setProject((current) => ({ ...current, googleMaps }))} />
         </WizardStep>
       );
@@ -121,7 +127,7 @@ export default function LocationWizard() {
 
     if (step === 3) {
       return (
-        <WizardStep title="Step 4: Storage Types" description="Select storage cards. Headings link only when a destination URL exists.">
+        <WizardStep title="Step 4: Storage Type Images" description="Demo images from the master library — replace with Storagely Media Library URLs before client launch.">
           <StorageTypeSelector
             selectedIds={project.selectedStorageImages}
             onChange={(selectedStorageImages) => setProject((current) => ({ ...current, selectedStorageImages }))}
@@ -165,7 +171,7 @@ export default function LocationWizard() {
 
     if (step === 5) {
       return (
-        <WizardStep title="Step 6: Nearby Locations" description="Select exactly 3 nearby facilities and prevent self-linking.">
+        <WizardStep title="Step 6: Nearby Locations" description="Search the facility library, select exactly 3 nearby locations, and prevent self-linking.">
           <NearbyLocationSelector
             project={project}
             facilities={facilities}

@@ -1,4 +1,4 @@
-const phoneRegex = /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
+const phoneRegex = /\+\d[\d\s().-]{6,}\d|(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
 
 const addressWords = [
   "street",
@@ -51,6 +51,18 @@ const featureKeywords = [
   "Well-Lit Facility",
 ];
 
+const FACILITY_FEATURES_HEADERS = [
+  /^facility\s*features?$/i,
+  /^features?\s*(?:&|and)\s*amenities?$/i,
+  /^amenities?$/i,
+  /^facility\s*amenities?$/i,
+];
+
+const UNIT_RENTAL_GRID_HEADERS = [/^unit\s*rental\s*grid$/i, /^unit\s*sizes?$/i, /^rental\s*grid$/i, /^storage\s*units?$/i];
+
+const SECTION_STOP_HEADERS =
+  /^(facility\s*features?|features?\s*(?:&|and)\s*amenities?|amenities?|unit\s*rental\s*grid|unit\s*sizes?|rental\s*grid|storage\s*types?|office\s*hours?|access\s*hours?|hours|address|phone|map|faq|nearby|why\s*choose|value\s*proposition|types?\s*of\s*storage|local\s*content|serving)/i;
+
 export interface ExtractedContent {
   phone?: string;
   address?: string;
@@ -58,7 +70,6 @@ export interface ExtractedContent {
   officeHours?: string;
   features: string[];
   storageTypes: string[];
-  uniqueSellingPoints: string[];
 }
 
 export const listFromText = (value: string): string[] =>
@@ -70,6 +81,56 @@ export const listFromText = (value: string): string[] =>
 export const listToText = (items: string[]): string => items.join("\n");
 
 const unique = (items: string[]): string[] => Array.from(new Set(items.filter(Boolean)));
+
+const normalizeLineItem = (line: string): string => line.replace(/^[-*•]\s*|^\d+\.\s*/, "").trim();
+
+const matchesHeader = (line: string, patterns: RegExp[]): boolean => {
+  const cleaned = line.replace(/^#+\s*/, "").replace(/:$/, "").trim();
+  return patterns.some((pattern) => pattern.test(cleaned));
+};
+
+const isSectionStop = (line: string): boolean => {
+  const cleaned = line.replace(/^#+\s*/, "").replace(/:$/, "").trim();
+  return SECTION_STOP_HEADERS.test(cleaned);
+};
+
+const extractSectionItems = (rawContent: string, headerPatterns: RegExp[]): string[] => {
+  const lines = rawContent.split(/\r?\n/).map((line) => line.trim());
+  const items: string[] = [];
+  let capturing = false;
+
+  lines.forEach((line) => {
+    if (!line) return;
+
+    if (matchesHeader(line, headerPatterns)) {
+      capturing = true;
+      return;
+    }
+
+    if (capturing && isSectionStop(line) && !matchesHeader(line, headerPatterns)) {
+      capturing = false;
+      return;
+    }
+
+    if (!capturing) return;
+
+    const item = normalizeLineItem(line);
+    if (item.length > 1 && item.length < 200) {
+      items.push(item);
+    }
+  });
+
+  return unique(items);
+};
+
+/** Pull Features & Amenities from Facility Features and Unit Rental Grid sections in pasted page content. */
+export const extractFeaturesAndAmenities = (rawContent: string): string[] => {
+  const fromFacilityFeatures = extractSectionItems(rawContent, FACILITY_FEATURES_HEADERS);
+  const fromUnitRentalGrid = extractSectionItems(rawContent, UNIT_RENTAL_GRID_HEADERS);
+  const fromKeywords = featureKeywords.filter((keyword) => includesLoose(rawContent, keyword));
+
+  return unique([...fromFacilityFeatures, ...fromUnitRentalGrid, ...fromKeywords]);
+};
 
 const includesLoose = (text: string, phrase: string): boolean => {
   const normalizedText = text.toLowerCase().replace(/[-\s]+/g, " ");
@@ -95,20 +156,22 @@ const findHoursLines = (lines: string[], type: "access" | "office"): string | un
   return lines.find((line) => /hours/i.test(line) && timeLike.test(line));
 };
 
+const normalizePhone = (raw?: string): string | undefined => {
+  if (!raw) return undefined;
+  return raw.replace(/\s+/g, " ").trim();
+};
+
 export const extractContentClues = (rawContent: string): ExtractedContent => {
   const lines = rawContent
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const phone = rawContent.match(phoneRegex)?.[0];
+  const phone = normalizePhone(rawContent.match(phoneRegex)?.[0]);
   const address = findAddressLine(lines);
   const accessHours = findHoursLines(lines, "access");
   const officeHours = findHoursLines(lines, "office");
   const storageTypes = storageKeywords.filter((keyword) => includesLoose(rawContent, keyword));
-  const features = featureKeywords.filter((keyword) => includesLoose(rawContent, keyword));
-  const uniqueSellingPoints = lines
-    .filter((line) => /convenient|secure|easy|near|locat|affordable|clean|friendly|online/i.test(line))
-    .slice(0, 5);
+  const features = extractFeaturesAndAmenities(rawContent);
 
   return {
     phone,
@@ -117,6 +180,5 @@ export const extractContentClues = (rawContent: string): ExtractedContent => {
     officeHours,
     features: unique(features),
     storageTypes: unique(storageTypes),
-    uniqueSellingPoints: unique(uniqueSellingPoints),
   };
 };

@@ -4,7 +4,7 @@ import GoogleSheetsImport from "../components/GoogleSheetsImport";
 import { TextInput } from "../components/FormControls";
 import { facilityCsvTemplate, facilityWarnings, normalizeFacility } from "../lib/facilityLibrary";
 import { createId } from "../lib/projectDefaults";
-import { imageCsvTemplate, imageWarnings, normalizeImage } from "../lib/imageLibrary";
+import { imageCsvTemplate, imageMarkdownTemplate, imageWarnings, normalizeImage } from "../lib/imageLibrary";
 import { useProjects } from "../state/ProjectsContext";
 import type { NearbyFacility, StorageImage, StorageImageType } from "../types/storiq";
 
@@ -36,6 +36,7 @@ export default function MasterDataPage() {
     resetFacilities,
     exportFacilitiesJson,
     importImagesCsv,
+    importImagesMarkdown,
     saveImage,
     deleteImage,
     resetImages,
@@ -44,6 +45,7 @@ export default function MasterDataPage() {
 
   const facilityFileRef = useRef<HTMLInputElement>(null);
   const imageFileRef = useRef<HTMLInputElement>(null);
+  const imageMarkdownFileRef = useRef<HTMLInputElement>(null);
   const [facilityMsg, setFacilityMsg] = useState("");
   const [imageMsg, setImageMsg] = useState("");
   const [editingFacility, setEditingFacility] = useState<NearbyFacility | null>(null);
@@ -225,7 +227,7 @@ export default function MasterDataPage() {
           <div>
             <h2 className="storiq-section-title">Image Library</h2>
             <p className="storiq-section-subtitle">
-              {images.length} images · Vehicle, Business, and Climate-Controlled may include destination URLs
+              {images.length} images · demo Unsplash URLs by default · import Storagely Media Library markdown or CSV to replace
             </p>
           </div>
           <div className="storiq-toolbar">
@@ -240,6 +242,18 @@ export default function MasterDataPage() {
             <button type="button" onClick={() => imageFileRef.current?.click()} className="storiq-btn storiq-btn-secondary">
               <FileUp className="h-4 w-4" aria-hidden="true" />
               Import CSV
+            </button>
+            <button type="button" onClick={() => imageMarkdownFileRef.current?.click()} className="storiq-btn storiq-btn-secondary">
+              <FileUp className="h-4 w-4" aria-hidden="true" />
+              Import Markdown
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadBlob("storiq-media-library-template.md", imageMarkdownTemplate, "text/markdown")}
+              className="storiq-btn storiq-btn-secondary"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              MD Template
             </button>
             <button type="button" onClick={() => downloadBlob("storiq-images.json", exportImagesJson(), "application/json")} className="storiq-btn storiq-btn-secondary">
               <Download className="h-4 w-4" aria-hidden="true" />
@@ -257,6 +271,20 @@ export default function MasterDataPage() {
             reader.onload = () => {
               const result = importImagesCsv(String(reader.result ?? ""));
               setImageMsg(`Imported ${result.imported}, skipped ${result.skipped}.`);
+            };
+            reader.readAsText(file);
+          }} />
+          <input ref={imageMarkdownFileRef} type="file" accept=".md,text/markdown,text/plain" className="hidden" onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = importImagesMarkdown(String(reader.result ?? ""));
+              setImageMsg(
+                result.errors.length > 0
+                  ? result.errors[0]
+                  : `Imported ${result.imported} image(s) from markdown, skipped ${result.skipped}.`,
+              );
             };
             reader.readAsText(file);
           }} />

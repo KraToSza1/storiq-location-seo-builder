@@ -1,3 +1,4 @@
+import { normalizePrimaryKeyword } from "./keywordUtils";
 import type { AppSettings, LocationProject } from "../types/storiq";
 
 export const defaultSettings: AppSettings = {
@@ -40,7 +41,7 @@ export const buildPrimaryKeyword = (
     return "";
   }
 
-  return pattern.replace("{City}", city.trim()).replace("{State}", state.trim());
+  return normalizePrimaryKeyword(pattern.replace("{City}", city.trim()).replace("{State}", state.trim()));
 };
 
 export const createLocationProject = (): LocationProject => {
@@ -71,7 +72,6 @@ export const createLocationProject = (): LocationProject => {
       officeHours: "",
       features: [],
       storageTypes: [],
-      uniqueSellingPoints: [],
     },
     googleMaps: {
       iframeCode: "",
@@ -109,6 +109,23 @@ export const cloneProject = (project: LocationProject): LocationProject => {
   };
 };
 
+const normalizeExistingContent = (
+  base: LocationProject["existingContent"],
+  value?: Partial<LocationProject["existingContent"]> & { uniqueSellingPoints?: string[] },
+): LocationProject["existingContent"] => {
+  const legacyUsp = value?.uniqueSellingPoints ?? [];
+  const mergedFeatures = Array.from(
+    new Set([...(value?.features ?? base.features), ...legacyUsp].map((item) => item.trim()).filter(Boolean)),
+  );
+
+  return {
+    ...base,
+    ...value,
+    features: mergedFeatures,
+    storageTypes: value?.storageTypes ?? base.storageTypes,
+  };
+};
+
 export const mergeWithProjectDefaults = (value: Partial<LocationProject>): LocationProject => {
   const base = createLocationProject();
 
@@ -116,8 +133,12 @@ export const mergeWithProjectDefaults = (value: Partial<LocationProject>): Locat
     ...base,
     ...value,
     locationIdentity: { ...base.locationIdentity, ...value.locationIdentity },
-    seo: { ...base.seo, ...value.seo },
-    existingContent: { ...base.existingContent, ...value.existingContent },
+    seo: {
+      ...base.seo,
+      ...value.seo,
+      primaryKeyword: normalizePrimaryKeyword(value.seo?.primaryKeyword ?? base.seo.primaryKeyword),
+    },
+    existingContent: normalizeExistingContent(base.existingContent, value.existingContent),
     googleMaps: { ...base.googleMaps, ...value.googleMaps },
     localContext: { ...base.localContext, ...value.localContext },
     selectedNearbyLocations: value.selectedNearbyLocations ?? base.selectedNearbyLocations,

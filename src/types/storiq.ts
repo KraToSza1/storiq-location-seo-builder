@@ -29,7 +29,6 @@ export interface LocationProject {
     officeHours: string;
     features: string[];
     storageTypes: string[];
-    uniqueSellingPoints: string[];
   };
   googleMaps: {
     iframeCode: string;

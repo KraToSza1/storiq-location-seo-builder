@@ -22,12 +22,8 @@ const selectedStorageTypes = (project: LocationProject, images: StorageImage[]):
     .filter((category): category is string => Boolean(category));
 
 const buildValueBullets = (project: LocationProject): string[] => {
-  const base = [
-    ...project.existingContent.uniqueSellingPoints,
-    ...project.existingContent.features.slice(0, 4),
-  ].filter(Boolean);
+  const unique = [...new Set(project.existingContent.features.filter(Boolean))];
 
-  const unique = [...new Set(base)];
   while (unique.length < 5 && project.existingContent.features.length > 0) {
     const next = project.existingContent.features.find((f) => !unique.includes(f));
     if (!next) break;

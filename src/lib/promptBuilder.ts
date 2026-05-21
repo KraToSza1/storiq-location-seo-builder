@@ -44,14 +44,11 @@ EXISTING LOCATION CONTENT
 Raw source content:
 ${project.existingContent.rawContent || "MISSING"}
 
-FEATURES
+FEATURES & AMENITIES
 ${lines(project.existingContent.features)}
 
 STORAGE TYPES OFFERED
 ${lines(project.existingContent.storageTypes)}
-
-UNIQUE SELLING POINTS
-${lines(project.existingContent.uniqueSellingPoints)}
 
 SELECTED STORAGE TYPE CARDS AND IMAGES
 ${selectedStorage || "- None selected"}

@@ -320,16 +320,42 @@ a:not(.storiq-btn):not(.storiq-nav-link):hover {
 .storiq-brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  min-width: 0;
+}
+
+.storiq-brand-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.storiq-brand-logo-wrap {
+  overflow: hidden;
+  border-radius: 0.5rem;
+  line-height: 0;
+  background: var(--storiq-header-bg);
 }
 
 .storiq-brand-logo {
   display: block;
-  height: 2.5rem;
+  height: 2.375rem;
   width: auto;
-  max-width: min(240px, 42vw);
+  max-width: min(260px, 48vw);
   object-fit: contain;
   object-position: left center;
+  border-radius: 0.5rem;
+}
+
+[data-theme="light"] .storiq-brand-logo {
+  mix-blend-mode: multiply;
+}
+
+[data-theme="dark"] .storiq-brand-logo,
+[data-theme="sunset"] .storiq-brand-logo {
+  mix-blend-mode: screen;
+  filter: brightness(1.06) contrast(1.04);
 }
 
 .storiq-brand-mark {
@@ -347,19 +373,14 @@ a:not(.storiq-btn):not(.storiq-nav-link):hover {
   letter-spacing: -0.04em;
 }
 
-.storiq-brand-title {
-  font-size: 1.0625rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  color: var(--storiq-fg);
-  line-height: 1.2;
-}
-
 .storiq-brand-subtitle {
+  margin: 0;
+  max-width: min(280px, 52vw);
   font-size: 0.6875rem;
   font-weight: 500;
   color: var(--storiq-fg-muted);
   letter-spacing: 0.01em;
+  line-height: 1.25;
 }
 
 .storiq-header-actions {
@@ -803,6 +824,16 @@ a.storiq-btn.storiq-btn-primary:focus-visible {
   overflow: hidden;
   border-radius: var(--storiq-radius);
   border: 1px solid var(--storiq-border);
+}
+
+.storiq-table-wrap.storiq-scrollbar {
+  overflow: auto;
+}
+
+.storiq-scroll-panel {
+  max-height: min(32rem, 65vh);
+  overflow: auto;
+  padding-right: 0.25rem;
 }
 
 .storiq-table {
