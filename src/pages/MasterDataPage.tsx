@@ -1,6 +1,7 @@
 import { AlertTriangle, Database, Download, FileUp, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import GoogleSheetsImport from "../components/GoogleSheetsImport";
+import MasterDataHealthPanel from "../components/MasterDataHealthPanel";
 import { TextInput } from "../components/FormControls";
 import { facilityCsvTemplate, facilityWarnings, normalizeFacility } from "../lib/facilityLibrary";
 import { createId } from "../lib/projectDefaults";
@@ -102,6 +103,10 @@ export default function MasterDataPage() {
             </p>
           </div>
         </div>
+      </section>
+
+      <section className="storiq-card storiq-card--padding">
+        <MasterDataHealthPanel facilities={facilities} images={images} />
       </section>
 
       <section className="storiq-card storiq-card--padding">

@@ -85,11 +85,11 @@ export const runSEOAudit = (
   const expectedSectionSignals = [
     "Features &amp; Amenities",
     "Why Choose",
-    "Types of Storage",
+    "Types of Self Storage",
     "Serving",
     "Other Nearby Locations at My Garage",
-    "FAQs",
-    "Map + Location + CTA",
+    "FAQs about Self Storage",
+    "map-section",
   ];
   const missingSections = expectedSectionSignals.filter((section) => !html.includes(section));
   checks.push(
@@ -115,7 +115,7 @@ export const runSEOAudit = (
     ),
   );
 
-  const hasStorageH3 = project.selectedStorageImages.length > 0 && countMatches(html, /facility-template__card[\s\S]*?<h3/gi) > 0;
+  const hasStorageH3 = project.selectedStorageImages.length > 0 && countMatches(html, /storage-card[\s\S]*?<h3/gi) > 0;
   checks.push(
     makeCheck(
       "storage-h3",
@@ -126,7 +126,7 @@ export const runSEOAudit = (
     ),
   );
 
-  const nearbyH3Count = countMatches(html, /facility-template__nearby-card[\s\S]*?<h3/gi);
+  const nearbyH3Count = countMatches(html, /location-card__content[\s\S]*?<h3/gi);
   checks.push(
     makeCheck(
       "nearby-h3",
@@ -209,15 +209,17 @@ export const runSEOAudit = (
     ),
   );
 
-  checks.push(
-    makeCheck(
-      "landmark-distance",
-      "Landmark distance verification",
-      project.localContext.landmarks.length > 0 ? "warning" : "warning",
-      "Manual verification required for all Section 4 landmarks within 10 miles / 16 km.",
-      "Use Google Maps or a distance API in Phase 2 before claiming verification.",
-    ),
-  );
+  if (project.localContext.landmarks.length > 0) {
+    checks.push(
+      makeCheck(
+        "landmark-distance",
+        "Landmark distance verification",
+        "warning",
+        "Manual verification required for all listed landmarks within 10 miles / 16 km.",
+        "Use Google Maps or a distance API in Phase 2 before claiming verification.",
+      ),
+    );
+  }
 
   const currentUrl = project.locationIdentity.storagelyPageUrl.trim().toLowerCase();
   const currentFacility = project.locationIdentity.facilityName.trim().toLowerCase();

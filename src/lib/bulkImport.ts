@@ -1,8 +1,8 @@
 import { normalizePrimaryKeyword } from "./keywordUtils";
+import { enhanceProjectFromLibraries } from "./projectEnhancements";
 import { buildPrimaryKeyword, createLocationProject } from "./projectDefaults";
 import { parseCsvRows } from "./facilityLibrary";
-import type { BulkCsvRow, LocationProject } from "../types/storiq";
-import type { AppSettings } from "../types/storiq";
+import type { AppSettings, BulkCsvRow, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const REQUIRED = ["city", "state", "zipCode", "facilityName", "storagelyPageUrl"] as const;
 
@@ -20,6 +20,9 @@ const headerAliases: Record<string, string> = {
   keyword: "primaryKeyword",
   address: "address",
   phone: "phone",
+  rawcontent: "rawContent",
+  brief: "rawContent",
+  existingcontent: "rawContent",
 };
 
 const normalizeHeader = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -63,6 +66,7 @@ export const parseBulkCsv = (csv: string): { rows: BulkCsvRow[]; missingColumns:
       primaryKeyword: normalizePrimaryKeyword(record.primaryKeyword || ""),
       address: record.address || "",
       phone: record.phone || "",
+      rawContent: record.rawContent || "",
       valid: errors.length === 0,
       errors,
     };
@@ -71,13 +75,21 @@ export const parseBulkCsv = (csv: string): { rows: BulkCsvRow[]; missingColumns:
   return { rows, missingColumns: [] };
 };
 
-export const bulkRowToProject = (row: BulkCsvRow, settings: AppSettings): LocationProject => {
+export const bulkCsvTemplate = `city,state,zipCode,facilityName,storagelyPageUrl,primaryKeyword,address,phone,rawContent
+Belton,TX,76513,My Garage Self Storage | I-35,https://www.mygarageselfstorage.com/self-storage/tx/belton/i-35/,self storage units in belton tx,"1234 I-35 Frontage Rd, Belton, TX 76513",+1-254-555-0100,"Paste brief or leave empty — map and nearby auto-fill when libraries are loaded."`;
+
+export const bulkRowToProject = (
+  row: BulkCsvRow,
+  settings: AppSettings,
+  facilities: NearbyFacility[] = [],
+  images: StorageImage[] = [],
+): LocationProject => {
   const project = createLocationProject();
   const keyword =
     row.primaryKeyword ||
     buildPrimaryKeyword(row.city, row.state, settings.defaultKeywordPattern);
 
-  return {
+  const base: LocationProject = {
     ...project,
     locationIdentity: {
       city: row.city,
@@ -94,6 +106,13 @@ export const bulkRowToProject = (row: BulkCsvRow, settings: AppSettings): Locati
       ...project.existingContent,
       address: row.address,
       phone: row.phone,
+      rawContent: row.rawContent || project.existingContent.rawContent,
     },
   };
+
+  if (facilities.length === 0 && images.length === 0) {
+    return base;
+  }
+
+  return enhanceProjectFromLibraries(base, facilities, images);
 };

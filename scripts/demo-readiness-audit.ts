@@ -20,11 +20,11 @@ const MAIN_RE = /<main\s+id=["']facility-template["']\s+class=["']facility-templ
 const SECTIONS = [
   "Features &amp; Amenities",
   "Why Choose",
-  "Types of Storage",
+  "Types of Self Storage",
   "Serving",
   "Other Nearby Locations at My Garage",
-  "FAQs",
-  "Map + Location + CTA",
+  "FAQs about Self Storage",
+  "map-section",
 ];
 
 const completeMapIframe = `<iframe src="https://www.google.com/maps/embed?pb=example" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map to facility"></iframe>`;

@@ -8,24 +8,26 @@ Paste client or demo images here before linking them in **Master Data** or your 
 |--------|---------|
 | `storage-types/` | Vehicle Storage, Climate-Controlled, RV, etc. (wizard Step 4) |
 | `facility-locations/` | Facility exterior / location hero images |
-| `nearby-facilities/` | Thumbnail images for nearby location cards |
+| `nearby-locations/` | Thumbnail images for nearby location cards (export grid backgrounds) |
 
 ## How URLs work in the app
 
 Files in `public/` are served from the site root. Example:
 
-- File on disk: `public/media-library/storage-types/vehicle-storage.jpg`
-- URL in Master Data: `/media-library/storage-types/vehicle-storage.jpg`
+- File on disk: `public/media-library/nearby-locations/self-storage-units-in-temple.webp`
+- URL in Master Data: `/media-library/nearby-locations/self-storage-units-in-temple.webp`
 
-Use that path in the **image URL** column (CSV/markdown import) or when editing an image in Master Data.
+Use that path in the **image URL** column (CSV/markdown import) or when editing a facility in Master Data.
+
+If you omit `imageUrl` on import, StorIQ tries to match `self-storage-units-in-{city}.webp` (or `.jpg`) from filenames in `nearby-locations/`.
 
 ## Suggested naming
 
 Use lowercase, hyphens, no spaces:
 
-- `vehicle-storage.jpg`
-- `climate-controlled-storage.jpg`
-- `facility-exterior-belton-i35.jpg`
+- `self-storage-units-in-killeen.webp`
+- `self-storage-units-in-belton.jpg`
+- `vehicle_storage.png` (storage types — underscores match bundled PNGs)
 
 ## Note
 

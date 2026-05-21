@@ -1,5 +1,5 @@
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
-import { renderFaqJsonLd } from "./templateRenderer";
+import { renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 import { getStorageImageById } from "./imageLibrary";
 
@@ -29,7 +29,7 @@ export const buildExportFilename = (project: LocationProject): string => {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "location";
 
-  return `storiq-${slug(project.locationIdentity.city)}-${slug(project.locationIdentity.state)}-${slug(project.locationIdentity.facilityName)}.html`;
+  return `storiq-${slug(project.locationIdentity.city)}-${slug(project.locationIdentity.state)}-${slug(project.locationIdentity.facilityName)}.md`;
 };
 
 export const runExportChecks = (
@@ -46,6 +46,17 @@ export const runExportChecks = (
   const selectedFacilities = project.selectedNearbyLocations
     .map((id) => facilities.find((f) => f.id === id))
     .filter((f): f is NearbyFacility => Boolean(f));
+
+  checks.push(
+    makeCheck(
+      "nearby-count",
+      "Exactly 3 nearby locations selected",
+      project.selectedNearbyLocations.length === 3 ? "pass" : "fail",
+      project.selectedNearbyLocations.length === 3
+        ? "Three nearby facilities selected."
+        : `Selected ${project.selectedNearbyLocations.length} — exactly 3 required for export.`,
+    ),
+  );
 
   checks.push(
     makeCheck(
@@ -71,11 +82,11 @@ export const runExportChecks = (
   const sections = [
     "Features &amp; Amenities",
     "Why Choose",
-    "Types of Storage",
+    "Types of Self Storage",
     "Serving",
     "Other Nearby Locations at My Garage",
-    "FAQs",
-    "Map + Location + CTA",
+    "FAQs about Self Storage",
+    "map-section",
   ];
   const missing = sections.filter((s) => !html.includes(s));
   checks.push(

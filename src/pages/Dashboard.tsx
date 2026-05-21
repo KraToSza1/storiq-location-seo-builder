@@ -1,10 +1,19 @@
-import { CopyPlus, Download, FileUp, Layers, Plus, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArrowRight, CopyPlus, Download, FileUp, Layers, Plus, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import BatchExportPanel from "../components/BatchExportPanel";
 import CompletionProgress from "../components/CompletionProgress";
+import LaunchChecklist from "../components/LaunchChecklist";
 import LaunchReadinessPanel from "../components/LaunchReadinessPanel";
 import { auditStatusFromScore, AuditStatusBadge, StatusBadge } from "../components/StatusBadge";
 import { getLaunchReadiness } from "../lib/launchReadiness";
+import {
+  countProjectsByQueue,
+  filterProjectsByQueue,
+  findNextIncompleteProject,
+  getProjectQueueStatus,
+  type ProjectQueueFilter,
+} from "../lib/projectQueue";
 import { useProjects } from "../state/ProjectsContext";
 
 const formatDate = (iso: string): string =>
@@ -13,11 +22,27 @@ const formatDate = (iso: string): string =>
     timeStyle: "short",
   }).format(new Date(iso));
 
+const filterOptions: { id: ProjectQueueFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "in_progress", label: "In progress" },
+  { id: "export_ready", label: "Export ready" },
+  { id: "needs_review", label: "Needs review" },
+  { id: "approved", label: "Approved" },
+];
+
 export default function Dashboard() {
   const { projects, facilities, images, deleteProject, duplicateProject, importProjects } = useProjects();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const [importMessage, setImportMessage] = useState("");
+  const [queueFilter, setQueueFilter] = useState<ProjectQueueFilter>("all");
+
+  const counts = useMemo(() => countProjectsByQueue(projects, facilities, images), [projects, facilities, images]);
+  const filteredProjects = useMemo(
+    () => filterProjectsByQueue(projects, queueFilter, facilities, images),
+    [projects, queueFilter, facilities, images],
+  );
+  const nextIncomplete = useMemo(() => findNextIncompleteProject(projects, facilities, images), [projects, facilities, images]);
 
   const downloadBackup = () => {
     const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
@@ -75,18 +100,22 @@ export default function Dashboard() {
 
       {importMessage ? <div className="storiq-alert storiq-alert-info">{importMessage}</div> : null}
 
+      <LaunchChecklist />
+
+      {projects.length > 0 ? <BatchExportPanel /> : null}
+
       <section className="storiq-grid-stats">
         <article className="storiq-stat-card">
           <div className="storiq-stat-value">{projects.length}</div>
           <div className="storiq-stat-label">Saved location projects</div>
         </article>
         <article className="storiq-stat-card">
-          <div className="storiq-stat-value">{facilities.length}</div>
-          <div className="storiq-stat-label">Master facilities</div>
+          <div className="storiq-stat-value">{counts.export_ready}</div>
+          <div className="storiq-stat-label">Export ready</div>
         </article>
         <article className="storiq-stat-card">
-          <div className="storiq-stat-value">{images.length}</div>
-          <div className="storiq-stat-label">Master images</div>
+          <div className="storiq-stat-value">{facilities.length}</div>
+          <div className="storiq-stat-label">Master facilities</div>
         </article>
         <article className="storiq-stat-card">
           <div className="storiq-stat-value storiq-stat-value--accent">
@@ -101,6 +130,22 @@ export default function Dashboard() {
         </article>
       </section>
 
+      {nextIncomplete ? (
+        <section className="storiq-card storiq-card--padding flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="storiq-section-title">Continue work</h2>
+            <p className="storiq-section-subtitle">
+              Next incomplete: {nextIncomplete.locationIdentity.facilityName || "Untitled"} —{" "}
+              {getProjectQueueStatus(nextIncomplete, facilities, images).label}
+            </p>
+          </div>
+          <Link to={`/locations/${nextIncomplete.id}`} className="storiq-btn storiq-btn-primary">
+            Open workspace
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </section>
+      ) : null}
+
       {projects.length === 0 ? (
         <section className="storiq-empty">
           <h2 className="storiq-empty-title">No location projects yet</h2>
@@ -113,69 +158,93 @@ export default function Dashboard() {
           </Link>
         </section>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-2">
-          {projects.map((project) => {
-            const failCount = project.audit.checks.filter((check) => check.status === "fail").length;
-            const auditStatus = auditStatusFromScore(project.audit.score, failCount);
-            const readiness = getLaunchReadiness(project, facilities, images);
-            const launchBadge =
-              readiness.status === "ready"
-                ? "storiq-badge-ready-launch"
-                : readiness.status === "needs_review"
-                  ? "storiq-badge-needs-review"
-                  : "storiq-badge-blocked";
+        <>
+          <section className="storiq-card storiq-card--padding">
+            <h2 className="storiq-section-title">Project queue</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setQueueFilter(option.id)}
+                  className={`storiq-btn storiq-btn-sm ${queueFilter === option.id ? "storiq-btn-primary" : "storiq-btn-secondary"}`}
+                >
+                  {option.label} ({counts[option.id]})
+                </button>
+              ))}
+            </div>
+          </section>
 
-            return (
-              <article key={project.id} className="storiq-card storiq-card--padding">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <Link to={`/locations/${project.id}`} className="storiq-link text-lg font-semibold" style={{ fontSize: "1.0625rem" }}>
-                      {project.locationIdentity.facilityName || "Untitled Location"}
-                    </Link>
-                    <p className="storiq-section-subtitle mt-1">
-                      {[project.locationIdentity.city, project.locationIdentity.state].filter(Boolean).join(", ") || "City and state missing"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <StatusBadge status={project.status} />
-                    <AuditStatusBadge status={auditStatus} label={`SEO ${project.audit.score}`} />
-                    <span className={`storiq-badge ${launchBadge}`}>
-                      {readiness.overallLabel} {readiness.score}
-                    </span>
-                  </div>
-                </div>
+          {filteredProjects.length === 0 ? (
+            <p className="storiq-empty-text">No projects in this queue filter.</p>
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-2">
+              {filteredProjects.map((project) => {
+                const failCount = project.audit.checks.filter((check) => check.status === "fail").length;
+                const auditStatus = auditStatusFromScore(project.audit.score, failCount);
+                const readiness = getLaunchReadiness(project, facilities, images);
+                const queueStatus = getProjectQueueStatus(project, facilities, images);
+                const launchBadge =
+                  readiness.status === "ready"
+                    ? "storiq-badge-ready-launch"
+                    : readiness.status === "needs_review"
+                      ? "storiq-badge-needs-review"
+                      : "storiq-badge-blocked";
 
-                <div className="mt-4">
-                  <CompletionProgress project={project} />
-                </div>
-                <div className="mt-4">
-                  <LaunchReadinessPanel project={project} compact />
-                </div>
+                return (
+                  <article key={project.id} className="storiq-card storiq-card--padding">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <Link to={`/locations/${project.id}`} className="storiq-link text-lg font-semibold" style={{ fontSize: "1.0625rem" }}>
+                          {project.locationIdentity.facilityName || "Untitled Location"}
+                        </Link>
+                        <p className="storiq-section-subtitle mt-1">
+                          {[project.locationIdentity.city, project.locationIdentity.state].filter(Boolean).join(", ") || "City and state missing"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="storiq-badge storiq-badge-pass">{queueStatus.label}</span>
+                        <StatusBadge status={project.status} />
+                        <AuditStatusBadge status={auditStatus} label={`SEO ${project.audit.score}`} />
+                        <span className={`storiq-badge ${launchBadge}`}>
+                          {readiness.overallLabel} {readiness.score}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="storiq-footer-meta mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <span>Last updated {formatDate(project.updatedAt)}</span>
-                  <div className="storiq-toolbar">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const copy = duplicateProject(project.id);
-                        if (copy) navigate(`/locations/${copy.id}`);
-                      }}
-                      className="storiq-btn storiq-btn-secondary storiq-btn-sm"
-                    >
-                      <CopyPlus className="h-4 w-4" aria-hidden="true" />
-                      Duplicate
-                    </button>
-                    <button type="button" onClick={() => deleteProject(project.id)} className="storiq-btn storiq-btn-danger storiq-btn-sm">
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                    <div className="mt-4">
+                      <CompletionProgress project={project} />
+                    </div>
+                    <div className="mt-4">
+                      <LaunchReadinessPanel project={project} compact />
+                    </div>
+
+                    <div className="storiq-footer-meta mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <span>Last updated {formatDate(project.updatedAt)}</span>
+                      <div className="storiq-toolbar">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const copy = duplicateProject(project.id);
+                            if (copy) navigate(`/locations/${copy.id}`);
+                          }}
+                          className="storiq-btn storiq-btn-secondary storiq-btn-sm"
+                        >
+                          <CopyPlus className="h-4 w-4" aria-hidden="true" />
+                          Duplicate
+                        </button>
+                        <button type="button" onClick={() => deleteProject(project.id)} className="storiq-btn storiq-btn-danger storiq-btn-sm">
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

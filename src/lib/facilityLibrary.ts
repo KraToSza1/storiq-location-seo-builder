@@ -1,4 +1,5 @@
 import { createId } from "./projectDefaults";
+import { resolveNearbyLocationImageUrl, upgradeFacilityImageUrl } from "./nearbyLocationImages";
 import { sampleFacilities } from "./sampleFacilities";
 import type { FacilityImportResult, NearbyFacility } from "../types/storiq";
 
@@ -115,11 +116,23 @@ export const normalizeFacility = (facility: Partial<NearbyFacility> & { url?: st
     return undefined;
   }
 
-  return {
+  const result: NearbyFacility = {
     ...normalized,
     id: normalized.id || buildFacilityId(normalized),
   };
+
+  if (!result.imageUrl) {
+    const resolved = resolveNearbyLocationImageUrl(result);
+    if (resolved) {
+      return { ...result, imageUrl: resolved };
+    }
+  }
+
+  return result;
 };
+
+export const upgradeFacilitiesImageUrls = (facilities: NearbyFacility[]): NearbyFacility[] =>
+  facilities.map(upgradeFacilityImageUrl);
 
 export const parseFacilitiesCsv = (csv: string): { facilities: NearbyFacility[]; result: FacilityImportResult } => {
   const rows = parseCsvRows(csv);
@@ -232,4 +245,4 @@ export const facilityWarnings = (facilities: NearbyFacility[]): string[] => {
 };
 
 export const facilityCsvTemplate = `facilityName,city,state,address,zipCode,storagelyUrl,phone,imageUrl,notes
-My Garage Self Storage | I-35,Belton,TX,"1234 I-35 Frontage Rd, Belton, TX 76513",76513,https://www.mygarageselfstorage.com/self-storage/tx/belton/i-35/,254-555-0100,https://example.com/belton.jpg,Starter row — replace with approved data`;
+My Garage Self Storage | I-35,Belton,TX,"1234 I-35 Frontage Rd, Belton, TX 76513",76513,https://www.mygarageselfstorage.com/self-storage/tx/belton/i-35/,254-555-0100,/media-library/nearby-locations/self-storage-units-in-belton.jpg,Starter row — replace with approved data`;

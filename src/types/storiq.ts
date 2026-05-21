@@ -147,6 +147,7 @@ export interface BulkCsvRow {
   primaryKeyword: string;
   address: string;
   phone: string;
+  rawContent: string;
   valid: boolean;
   errors: string[];
 }

@@ -1,7 +1,7 @@
-import { storageTypeImage } from "./mediaPaths";
+import { nearbyLocationImage } from "./mediaPaths";
 import type { NearbyFacility } from "../types/storiq";
 
-/** Starter sample data — replace via Master Data import before client demos. */
+/** Starter sample data — images from `public/media-library/nearby-locations/`. */
 export const sampleFacilities: NearbyFacility[] = [
   {
     id: "mgs-belton-i35",
@@ -11,7 +11,7 @@ export const sampleFacilities: NearbyFacility[] = [
     address: "1234 I-35 Frontage Rd, Belton, TX 76513",
     zipCode: "76513",
     storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/belton/i-35/",
-    imageUrl: storageTypeImage("climate_controlled_storage.png"),
+    imageUrl: nearbyLocationImage("self-storage-units-in-belton.jpg"),
     notes: "Sample data — import real facilities CSV",
   },
   {
@@ -22,7 +22,7 @@ export const sampleFacilities: NearbyFacility[] = [
     address: "4501 Loop 363, Temple, TX 76502",
     zipCode: "76502",
     storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/temple/loop-363/",
-    imageUrl: storageTypeImage("business_storage.png"),
+    imageUrl: nearbyLocationImage("self-storage-units-in-temple-south-31.webp"),
   },
   {
     id: "mgs-killeen-central",
@@ -32,36 +32,36 @@ export const sampleFacilities: NearbyFacility[] = [
     address: "2500 E Central Texas Expy, Killeen, TX 76543",
     zipCode: "76543",
     storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/killeen/central/",
-    imageUrl: storageTypeImage("vehicle_storage.png"),
+    imageUrl: nearbyLocationImage("self-storage-units-in-killeen.webp"),
   },
   {
-    id: "mgs-salado-main",
-    facilityName: "My Garage Self Storage | Main Street",
-    city: "Salado",
+    id: "mgs-morgans-point-resort",
+    facilityName: "My Garage Self Storage | Morgan's Point Resort",
+    city: "Morgan's Point Resort",
     state: "TX",
-    address: "901 N Main St, Salado, TX 76571",
-    zipCode: "76571",
-    storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/salado/main-street/",
-    imageUrl: storageTypeImage("indoor_storage.png"),
+    address: "120 Lakeshore Dr, Morgan's Point Resort, TX 76513",
+    zipCode: "76513",
+    storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/morgans-point-resort/",
+    imageUrl: nearbyLocationImage("self-storage-units-in-morgans-point-resort.webp"),
   },
   {
-    id: "mgs-georgetown-north",
-    facilityName: "My Garage Self Storage | North Georgetown",
-    city: "Georgetown",
+    id: "mgs-copperas-cove",
+    facilityName: "My Garage Self Storage | Copperas Cove",
+    city: "Copperas Cove",
     state: "TX",
-    address: "7800 Williams Dr, Georgetown, TX 78633",
-    zipCode: "78633",
-    storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/georgetown/north/",
-    imageUrl: storageTypeImage("rv_storage.png"),
+    address: "1201 US-190, Copperas Cove, TX 76522",
+    zipCode: "76522",
+    storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/copperas-cove/",
+    imageUrl: nearbyLocationImage("self-storage-units-in-copperas-cove.webp"),
   },
   {
-    id: "mgs-waco-south",
-    facilityName: "My Garage Self Storage | South Waco",
-    city: "Waco",
+    id: "mgs-tyler",
+    facilityName: "My Garage Self Storage | Tyler",
+    city: "Tyler",
     state: "TX",
-    address: "7100 Bagby Ave, Waco, TX 76712",
-    zipCode: "76712",
-    storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/waco/south/",
-    imageUrl: storageTypeImage("truck_storage.png"),
+    address: "4500 Troup Hwy, Tyler, TX 75703",
+    zipCode: "75703",
+    storagelyUrl: "https://www.mygarageselfstorage.com/self-storage/tx/tyler/",
+    imageUrl: nearbyLocationImage("self-storage-units-in-tyler.webp"),
   },
 ];

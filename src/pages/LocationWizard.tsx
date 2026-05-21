@@ -10,6 +10,11 @@ import RequiredFieldBadge from "../components/RequiredFieldBadge";
 import StorageTypeSelector from "../components/StorageTypeSelector";
 import WizardStep from "../components/WizardStep";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
+import {
+  enhanceProjectFromLibraries,
+  matchNearbyIdsFromContent,
+  matchStorageImageIds,
+} from "../lib/projectEnhancements";
 import { buildPrimaryKeyword, createLocationProject } from "../lib/projectDefaults";
 import { getProjectValidation } from "../lib/validators";
 import { useProjects } from "../state/ProjectsContext";
@@ -26,11 +31,11 @@ const stepLabels = [
 ];
 
 export default function LocationWizard() {
-  const { addProject, facilities, settings } = useProjects();
+  const { addProject, facilities, images, settings } = useProjects();
   const [project, setProject] = useState<LocationProject>(() => createLocationProject());
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
-  const validation = useMemo(() => getProjectValidation(project, facilities), [project, facilities]);
+  const validation = useMemo(() => getProjectValidation(project, facilities, images), [project, facilities, images]);
 
   const updateProject = (updater: (current: LocationProject) => LocationProject) => {
     setProject((current) => updater(current));
@@ -59,7 +64,7 @@ export default function LocationWizard() {
   };
 
   const saveDraft = () => {
-    const saved = addProject(project);
+    const saved = addProject(enhanceProjectFromLibraries(project, facilities, images));
     navigate(`/locations/${saved.id}`);
   };
 
@@ -112,6 +117,18 @@ export default function LocationWizard() {
           <ExistingContentParser
             content={project.existingContent}
             onChange={(existingContent) => setProject((current) => ({ ...current, existingContent }))}
+            onExtracted={(existingContent) => {
+              setProject((current) => {
+                const nearbyIds = matchNearbyIdsFromContent(existingContent.rawContent, facilities, current);
+                const storageIds = matchStorageImageIds(existingContent.storageTypes, images);
+                return {
+                  ...current,
+                  existingContent,
+                  selectedNearbyLocations: nearbyIds.length > 0 ? nearbyIds : current.selectedNearbyLocations,
+                  selectedStorageImages: storageIds.length > 0 ? storageIds : current.selectedStorageImages,
+                };
+              });
+            }}
           />
         </WizardStep>
       );

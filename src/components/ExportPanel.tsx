@@ -1,7 +1,9 @@
 import { AlertTriangle, CheckCircle2, Download, XCircle } from "lucide-react";
 import CopyButton from "./CopyButton";
 import LaunchReadinessPanel from "./LaunchReadinessPanel";
+import PublishedPageQaPanel from "./PublishedPageQaPanel";
 import { buildExportFilename, exportChecksPass, runExportChecks } from "../lib/exportChecks";
+import { extractMainFragment, extractStoragelyPasteBody } from "../lib/htmlExport";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject } from "../types/storiq";
 
@@ -38,6 +40,8 @@ export default function ExportPanel({ project }: { project: LocationProject }) {
   const filename = buildExportFilename(project);
   const json = JSON.stringify(project, null, 2);
   const report = auditReport(project);
+  const fragment = extractStoragelyPasteBody(html);
+  const mainOnly = extractMainFragment(html);
 
   return (
     <div className="storiq-stack">
@@ -66,12 +70,25 @@ export default function ExportPanel({ project }: { project: LocationProject }) {
 
       <section className="storiq-card storiq-card--padding">
         <h2 className="storiq-section-title">Export Assets</h2>
-        <p className="storiq-section-subtitle">Download filename: {filename}</p>
+        <p className="storiq-section-subtitle">
+          Download filename: {filename} — full HTML document, or use fragment mode if Storagely strips the outer shell.
+        </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <CopyButton value={html} label="Copy HTML" />
-          <button type="button" disabled={!canExport} onClick={() => downloadText(filename, html, "text/html")} className="storiq-btn storiq-btn-secondary">
+          <CopyButton value={html} label="Copy Full HTML" />
+          <CopyButton value={fragment} label="Copy Storagely Fragment" variant="secondary" />
+          <CopyButton value={mainOnly} label="Copy Main Only" variant="secondary" />
+          <button type="button" disabled={!canExport} onClick={() => downloadText(filename, html, "text/markdown")} className="storiq-btn storiq-btn-secondary">
             <Download className="h-4 w-4" aria-hidden="true" />
-            Download HTML
+            Download Full (.md)
+          </button>
+          <button
+            type="button"
+            disabled={!canExport}
+            onClick={() => downloadText(filename.replace(".md", "-fragment.md"), fragment, "text/markdown")}
+            className="storiq-btn storiq-btn-secondary"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Download Fragment (.md)
           </button>
           <CopyButton value={project.generated.aiPrompt} label="Copy AI Prompt" variant="secondary" />
           <button type="button" onClick={() => downloadText(filename.replace(".html", ".json"), json, "application/json")} className="storiq-btn storiq-btn-secondary">
@@ -82,6 +99,8 @@ export default function ExportPanel({ project }: { project: LocationProject }) {
         </div>
         {!canExport ? <p className="storiq-alert storiq-alert-danger mt-4">Fix failed pre-export checks before downloading HTML for production.</p> : null}
       </section>
+
+      <PublishedPageQaPanel project={project} />
     </div>
   );
 }

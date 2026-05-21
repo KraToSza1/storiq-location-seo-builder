@@ -1,12 +1,16 @@
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { defaultFacilities } from "./facilityLibrary";
-import type { LocationProject, NearbyFacility } from "../types/storiq";
+import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const lines = (items: string[]): string => (items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : "- None provided");
 
-export const buildAiPrompt = (project: LocationProject, facilities: NearbyFacility[] = defaultFacilities): string => {
+export const buildAiPrompt = (
+  project: LocationProject,
+  facilities: NearbyFacility[] = defaultFacilities,
+  images: StorageImage[] = defaultImages,
+): string => {
   const selectedStorage = project.selectedStorageImages
-    .map((id) => getStorageImageById(defaultImages, id))
+    .map((id) => getStorageImageById(images, id))
     .filter(Boolean)
     .map((image) => {
       if (!image) return "";
@@ -79,7 +83,7 @@ ${project.googleMaps.iframeCode || "MISSING"}
 
 SEO AND HTML RULES
 - Use one main wrapper: <main id="facility-template" class="facility-template">.
-- Include exactly 7 H2 page sections: Features & Amenities, Value Proposition, Types of Storage, Local Content, Nearby Locations, FAQs, Map + Location + CTA.
+- Include exactly 7 H2 page sections inside #facility-template: Features & Amenities, Why Choose, Types of Storage, Serving, Other Nearby Locations at My Garage, FAQs, and Map/Location CTA (map-section layout).
 - Storage cards must use H3 headings.
 - Nearby location cards must use H3 headings.
 - FAQ questions must use H3 inside summary.

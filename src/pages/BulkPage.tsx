@@ -1,17 +1,29 @@
-import { CheckCircle2, FileUp, Layers, XCircle } from "lucide-react";
+import { CheckCircle2, Download, FileUp, Layers, XCircle } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import GoogleSheetsImport from "../components/GoogleSheetsImport";
-import { bulkRowToProject, parseBulkCsv } from "../lib/bulkImport";
+import { bulkCsvTemplate, bulkRowToProject, parseBulkCsv } from "../lib/bulkImport";
+import { findNextIncompleteProject } from "../lib/projectQueue";
 import { useProjects } from "../state/ProjectsContext";
 
+const downloadBlob = (filename: string, content: string, type: string) => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 export default function BulkPage() {
-  const { addProject, settings } = useProjects();
+  const { addProject, settings, facilities, images, projects } = useProjects();
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const [rows, setRows] = useState<ReturnType<typeof parseBulkCsv>["rows"]>([]);
   const [missingColumns, setMissingColumns] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [createdIds, setCreatedIds] = useState<string[]>([]);
 
   const validRows = rows.filter((row) => row.valid);
   const invalidRows = rows.filter((row) => !row.valid);
@@ -35,9 +47,24 @@ export default function BulkPage() {
   };
 
   const createDrafts = () => {
-    validRows.forEach((row) => addProject(bulkRowToProject(row, settings)));
-    setMessage(`Created ${validRows.length} draft project(s).`);
-    if (validRows.length === 1) navigate("/");
+    const ids: string[] = [];
+    validRows.forEach((row) => {
+      const saved = addProject(bulkRowToProject(row, settings, facilities, images));
+      ids.push(saved.id);
+    });
+    setCreatedIds(ids);
+    setMessage(
+      `Created ${validRows.length} draft project(s) with auto map, nearby, and storage suggestions when libraries are loaded.`,
+    );
+  };
+
+  const openFirstCreated = () => {
+    if (createdIds[0]) {
+      navigate(`/locations/${createdIds[0]}`);
+      return;
+    }
+    const next = findNextIncompleteProject(projects, facilities, images);
+    navigate(next ? `/locations/${next.id}` : "/");
   };
 
   return (
@@ -50,7 +77,7 @@ export default function BulkPage() {
           <div>
             <h1 className="storiq-page-title">Bulk Builder</h1>
             <p className="storiq-page-subtitle">
-              Upload a CSV or import from Google Sheets to preview rows and create draft location projects. HTML is not auto-generated in this pass.
+              Upload CSV or Google Sheets to create draft projects. Each row auto-fills map embed, nearby picks, and storage types when master data is loaded.
             </p>
           </div>
         </div>
@@ -61,14 +88,25 @@ export default function BulkPage() {
         <p className="storiq-section-subtitle mt-2">
           <code className="storiq-code px-2 py-0.5" style={{ display: "inline" }}>city, state, zipCode, facilityName, storagelyPageUrl</code>
           {" "}— optional:{" "}
-          <code className="storiq-code px-2 py-0.5" style={{ display: "inline" }}>primaryKeyword, address, phone</code>
+          <code className="storiq-code px-2 py-0.5" style={{ display: "inline" }}>primaryKeyword, address, phone, rawContent</code>
         </p>
-        <button type="button" onClick={() => fileRef.current?.click()} className="storiq-btn storiq-btn-primary mt-4">
-          <FileUp className="h-4 w-4" aria-hidden="true" />
-          Upload CSV
-        </button>
+        <div className="storiq-toolbar mt-4">
+          <button type="button" onClick={() => downloadBlob("storiq-bulk-locations-template.csv", bulkCsvTemplate, "text/csv")} className="storiq-btn storiq-btn-secondary">
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Download CSV template
+          </button>
+          <button type="button" onClick={() => fileRef.current?.click()} className="storiq-btn storiq-btn-primary">
+            <FileUp className="h-4 w-4" aria-hidden="true" />
+            Upload CSV
+          </button>
+        </div>
         <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
         {message ? <div className="storiq-alert storiq-alert-info mt-4">{message}</div> : null}
+        {createdIds.length > 0 ? (
+          <button type="button" onClick={openFirstCreated} className="storiq-btn storiq-btn-secondary mt-3">
+            Open first created project →
+          </button>
+        ) : null}
 
         <GoogleSheetsImport
           scope="bulk"

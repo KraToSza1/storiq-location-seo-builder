@@ -10,6 +10,7 @@ import {
   mergeFacilities,
   normalizeFacility,
   parseFacilitiesCsv,
+  upgradeFacilitiesImageUrls,
   upsertFacility,
 } from "../lib/facilityLibrary";
 import { starterImages } from "../lib/defaultImages";
@@ -147,6 +148,7 @@ export const prepareProject = (
       },
     },
     facilities,
+    images,
   );
   const withGenerated = {
     ...withDraft,
@@ -169,17 +171,18 @@ export const prepareProject = (
 const usesLegacyRemoteImage = (url?: string): boolean => Boolean(url && /unsplash\.com|:\/\/example\.com/i.test(url));
 
 const syncFacilitiesWithLocalImages = (stored: NearbyFacility[]): NearbyFacility[] => {
-  if (!stored.some((f) => usesLegacyRemoteImage(f.imageUrl))) {
-    return stored;
-  }
   const starterById = new Map(sampleFacilities.map((f) => [f.id, f]));
-  return stored.map((facility) => {
-    const starter = starterById.get(facility.id);
-    if (starter?.imageUrl) {
-      return { ...facility, imageUrl: starter.imageUrl };
-    }
-    return facility;
-  });
+  const withStarters = stored.some((f) => usesLegacyRemoteImage(f.imageUrl))
+    ? stored.map((facility) => {
+        const starter = starterById.get(facility.id);
+        if (starter?.imageUrl) {
+          return { ...facility, imageUrl: starter.imageUrl };
+        }
+        return facility;
+      })
+    : stored;
+
+  return upgradeFacilitiesImageUrls(withStarters);
 };
 
 const syncImagesWithLocalLibrary = (stored: StorageImage[]): StorageImage[] => {

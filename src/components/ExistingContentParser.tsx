@@ -6,13 +6,15 @@ import type { LocationProject } from "../types/storiq";
 export default function ExistingContentParser({
   content,
   onChange,
+  onExtracted,
 }: {
   content: LocationProject["existingContent"];
   onChange: (content: LocationProject["existingContent"]) => void;
+  onExtracted?: (content: LocationProject["existingContent"]) => void;
 }) {
   const extract = () => {
     const extracted = extractContentClues(content.rawContent);
-    onChange({
+    const next = {
       ...content,
       phone: content.phone || extracted.phone || "",
       address: content.address || extracted.address || "",
@@ -20,7 +22,9 @@ export default function ExistingContentParser({
       officeHours: content.officeHours || extracted.officeHours || "",
       features: content.features.length ? content.features : extracted.features,
       storageTypes: content.storageTypes.length ? content.storageTypes : extracted.storageTypes,
-    });
+    };
+    onChange(next);
+    onExtracted?.(next);
   };
 
   return (

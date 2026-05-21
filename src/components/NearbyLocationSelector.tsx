@@ -1,6 +1,7 @@
-import { AlertTriangle, Check, ExternalLink, MapPin, Search } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, MapPin, Search, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { NEARBY_SELECTION_LIMIT, canSelectMoreNearby, rankNearbyFacilities, suggestNearbyFacilityIds } from "../lib/nearbySuggestions";
 import type { LocationProject, NearbyFacility } from "../types/storiq";
 
 export default function NearbyLocationSelector({
@@ -17,22 +18,37 @@ export default function NearbyLocationSelector({
   const [query, setQuery] = useState("");
 
   const toggle = (id: string) => {
-    onChange(selectedIds.includes(id) ? selectedIds.filter((selected) => selected !== id) : [...selectedIds, id]);
+    if (selectedIds.includes(id)) {
+      onChange(selectedIds.filter((selected) => selected !== id));
+      return;
+    }
+    if (!canSelectMoreNearby(selectedIds)) {
+      return;
+    }
+    onChange([...selectedIds, id]);
+  };
+
+  const applySuggestions = () => {
+    onChange(suggestNearbyFacilityIds(project, facilities));
   };
 
   const selectedFacilities = selectedIds.map((id) => facilities.find((f) => f.id === id)).filter((f): f is NearbyFacility => Boolean(f));
 
+  const rankedFacilities = useMemo(() => rankNearbyFacilities(project, facilities), [project, facilities]);
+
   const filteredFacilities = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return facilities;
+    const pool = needle
+      ? rankedFacilities.filter((facility) => {
+          const haystack = [facility.facilityName, facility.city, facility.state, facility.address, facility.zipCode, facility.storagelyUrl]
+            .join(" ")
+            .toLowerCase();
+          return haystack.includes(needle);
+        })
+      : rankedFacilities;
 
-    return facilities.filter((facility) => {
-      const haystack = [facility.facilityName, facility.city, facility.state, facility.address, facility.zipCode, facility.storagelyUrl]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(needle);
-    });
-  }, [facilities, query]);
+    return pool;
+  }, [rankedFacilities, query]);
 
   if (facilities.length === 0) {
     return (
@@ -46,10 +62,19 @@ export default function NearbyLocationSelector({
     );
   }
 
+  const atLimit = selectedIds.length >= NEARBY_SELECTION_LIMIT;
+
   return (
     <div className="storiq-stack">
-      <div className={`storiq-alert ${selectedIds.length === 3 ? "storiq-alert-success" : "storiq-alert-warning"}`}>
-        Select exactly 3 nearby facilities. Current selection: {selectedIds.length}.
+      <div className={`storiq-alert ${selectedIds.length === NEARBY_SELECTION_LIMIT ? "storiq-alert-success" : "storiq-alert-warning"}`}>
+        Select exactly {NEARBY_SELECTION_LIMIT} nearby facilities. Current selection: {selectedIds.length}.
+        {atLimit ? " Maximum reached — remove one to change selection." : ""}
+      </div>
+      <div className="storiq-toolbar">
+        <button type="button" onClick={applySuggestions} className="storiq-btn storiq-btn-secondary">
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          Suggest best 3 (same state, with images)
+        </button>
       </div>
       {selectedFacilities.some((f) => !f.storagelyUrl) ? (
         <div className="storiq-alert storiq-alert-danger">One or more selected facilities are missing a Storagely URL.</div>
@@ -75,7 +100,7 @@ export default function NearbyLocationSelector({
           />
         </div>
         <span className="storiq-help">
-          Showing {filteredFacilities.length} of {facilities.length} facilities
+          Sorted by relevance (same state first). Showing {filteredFacilities.length} of {facilities.length} facilities
           {query.trim() ? ` matching “${query.trim()}”` : ""}.
         </span>
       </label>
@@ -90,12 +115,13 @@ export default function NearbyLocationSelector({
               const selfLink =
                 facility.storagelyUrl.toLowerCase() === project.locationIdentity.storagelyPageUrl.trim().toLowerCase() ||
                 facility.facilityName.toLowerCase() === project.locationIdentity.facilityName.trim().toLowerCase();
+              const disabled = selfLink || (!selected && atLimit);
 
               return (
                 <article
                   key={facility.id}
-                  className={`storiq-select-card${selected ? " storiq-select-card--selected" : ""}${selfLink ? " storiq-select-card--disabled" : ""}`}
-                  style={{ cursor: selfLink ? "not-allowed" : undefined }}
+                  className={`storiq-select-card${selected ? " storiq-select-card--selected" : ""}${disabled ? " storiq-select-card--disabled" : ""}`}
+                  style={{ cursor: disabled ? "not-allowed" : undefined, opacity: disabled && !selected ? 0.65 : undefined }}
                 >
                   {facility.imageUrl ? (
                     <img src={facility.imageUrl} alt={facility.facilityName} className="h-28 w-full object-cover" loading="lazy" />
@@ -132,8 +158,8 @@ export default function NearbyLocationSelector({
                         Missing URL
                       </span>
                     )}
-                    <button type="button" onClick={() => toggle(facility.id)} disabled={selfLink} className="storiq-btn storiq-btn-secondary w-full">
-                      {selfLink ? "Current facility — cannot select" : selected ? "Remove" : "Select"}
+                    <button type="button" onClick={() => toggle(facility.id)} disabled={disabled} className="storiq-btn storiq-btn-secondary w-full">
+                      {selfLink ? "Current facility — cannot select" : selected ? "Remove" : atLimit ? "Limit reached (3)" : "Select"}
                     </button>
                   </div>
                 </article>
