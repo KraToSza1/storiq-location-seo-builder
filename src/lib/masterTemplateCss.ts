@@ -396,6 +396,34 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     text-decoration: none;
   }
 
+  /* Storagely defense: keep exported CTAs and card links clickable above CMS overlays */
+  #facility-template a.cta-button,
+  #facility-template a.location-card__link,
+  #facility-template a.storage-card__heading-link {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative;
+    z-index: 2;
+    text-decoration: none !important;
+  }
+
+  #facility-template .facility-section.facility-section--brand a.cta-button,
+  #facility-template .facility-section.facility-section--brand a.cta-button:visited {
+    color: var(--primary-color) !important;
+    background: var(--bg-white) !important;
+  }
+
+  #facility-template .facility-section.facility-section--brand a.cta-button:hover,
+  #facility-template .facility-section.facility-section--brand a.cta-button:focus {
+    color: var(--primary-color) !important;
+    background: #f2f2f2 !important;
+  }
+
+  #facility-template .map-section__info {
+    position: relative;
+    z-index: 1;
+  }
+
   /* ---- Responsive ---- */
   @media (max-width: 1024px) {
     .storage-grid { grid-template-columns: repeat(2, 1fr); }

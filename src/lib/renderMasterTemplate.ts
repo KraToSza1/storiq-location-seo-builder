@@ -6,7 +6,7 @@ import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
-import { cityState, escapeHtml, formatTelHref, safeUrl, slugify } from "./templateUtils";
+import { cityState, escapeHtml, externalLinkAttrs, formatTelHref, safeUrl, slugify } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const publishMediaUrl = (url: string | undefined | null, publishAssetBaseUrl: string): string =>
@@ -88,7 +88,7 @@ const renderStorageCard = (
   const description = storageCardDescription(image, project, images);
   const heading =
     image.destinationUrl && isLinkableStorageType(image.category)
-      ? `<h3><a href="${safeUrl(image.destinationUrl)}" class="storage-card__heading-link">${escapeHtml(image.category)}</a></h3>`
+      ? `<h3><a href="${safeUrl(image.destinationUrl)}" class="storage-card__heading-link"${externalLinkAttrs(image.destinationUrl)}>${escapeHtml(image.category)}</a></h3>`
       : `<h3>${escapeHtml(image.category)}</h3>`;
   const imageSrc = publishMediaUrl(image.imageUrl, publishAssetBaseUrl);
   const imageMarkup = imageSrc
@@ -126,7 +126,7 @@ const renderNearbyCard = (facility: NearbyFacility, project: LocationProject): s
             facility.notes?.trim() ||
               `Convenient self storage in ${facility.city}, ${facility.state}, with flexible month-to-month rentals and easy access for residents and businesses near ${place}.`,
           )}</p>
-          <a href="${safeUrl(facility.storagelyUrl)}" class="location-card__link">${escapeHtml(linkLabel)}</a>
+          <a href="${safeUrl(facility.storagelyUrl)}" class="location-card__link"${externalLinkAttrs(facility.storagelyUrl)}>${escapeHtml(linkLabel)}</a>
         </div>
       </article>`;
 };
@@ -331,7 +331,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
         ${renderMapDirections(project, place)}
         ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(project.existingContent.accessHours)}</p>` : ""}
         ${project.existingContent.officeHours ? `<p><strong>Office Hours:</strong> ${escapeHtml(project.existingContent.officeHours)}</p>` : ""}
-        ${phone ? `<a href="${escapeHtml(telHref)}" class="cta-button">Call ${escapeHtml(phone)}</a>` : `<a href="${safeUrl(project.locationIdentity.storagelyPageUrl || "#")}" class="cta-button">View Units</a>`}
+        ${phone ? `<a href="${escapeHtml(telHref)}" class="cta-button">Call ${escapeHtml(phone)}</a>` : project.locationIdentity.storagelyPageUrl?.trim() ? `<a href="${safeUrl(project.locationIdentity.storagelyPageUrl)}" class="cta-button"${externalLinkAttrs(project.locationIdentity.storagelyPageUrl)}>View Units</a>` : ""}
       </div>
     </div>
   </section>

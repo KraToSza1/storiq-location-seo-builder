@@ -8,6 +8,10 @@ export const escapeHtml = (value: string): string =>
 
 export const safeUrl = (value: string): string => escapeHtml(value.trim());
 
+/** Extra attributes for external https links in exported Storagely HTML. */
+export const externalLinkAttrs = (url: string): string =>
+  /^https?:\/\//i.test(url.trim()) ? ' target="_blank" rel="noopener noreferrer"' : "";
+
 export const slugify = (value: string): string =>
   value
     .toLowerCase()
