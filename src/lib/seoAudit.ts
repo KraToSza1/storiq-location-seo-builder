@@ -1,4 +1,6 @@
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
+import { resolvePublishAssetBaseUrl } from "./assetUrls";
+import { defaultSettings } from "./projectDefaults";
 import { renderFaqJsonLd, renderStoragelyHtml } from "./templateRenderer";
 import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
@@ -47,7 +49,7 @@ const scoreChecks = (checks: SEOAuditCheck[]): number => {
 
 export const runSEOAudit = (
   project: LocationProject,
-  html = renderStoragelyHtml(project),
+  html = renderStoragelyHtml(project, defaultFacilities, defaultImages, resolvePublishAssetBaseUrl(defaultSettings)),
   facilities: NearbyFacility[] = defaultFacilities,
   images = defaultImages,
 ) => {

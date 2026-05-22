@@ -1,5 +1,10 @@
-import type { LocationProject } from "../types/storiq";
+import { resolvePublishAssetBaseUrl, rewriteExportHtml } from "./assetUrls";
+import type { AppSettings, LocationProject } from "../types/storiq";
 import { generateDraftMetaDescription } from "./draftGenerator";
+
+/** Ensures `/media-library/` paths work when HTML is pasted on the client Storagely domain. */
+export const exportHtmlForPublish = (html: string, settings?: Pick<AppSettings, "mediaAssetBaseUrl">): string =>
+  rewriteExportHtml(html, resolvePublishAssetBaseUrl(settings));
 
 /** Full document from renderStoragelyHtml. */
 export const extractMainFragment = (html: string): string => {

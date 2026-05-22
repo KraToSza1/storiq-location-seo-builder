@@ -95,6 +95,8 @@ export interface AppSettings {
   brandName: string;
   defaultKeywordPattern: string;
   aiPromptSettings: string;
+  /** Full origin where `/media-library/` files are hosted (StorIQ Vercel app). Required for Storagely paste. */
+  mediaAssetBaseUrl: string;
 }
 
 export interface DraftSection {

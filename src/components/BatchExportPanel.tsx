@@ -5,13 +5,13 @@ import { downloadExportReadyZip, getExportReadyProjects } from "../lib/bulkExpor
 import { useProjects } from "../state/ProjectsContext";
 
 export default function BatchExportPanel() {
-  const { projects, facilities, images } = useProjects();
+  const { projects, facilities, images, settings } = useProjects();
   const [message, setMessage] = useState("");
   const ready = getExportReadyProjects(projects, facilities, images);
   const counts = countProjectsByQueue(projects, facilities, images);
 
   const handleZip = async () => {
-    const result = await downloadExportReadyZip(projects, facilities, images);
+    const result = await downloadExportReadyZip(projects, facilities, images, settings);
     setMessage(
       result.count > 0
         ? `Downloaded ZIP with ${result.count} file(s). ${result.skipped} project(s) skipped (not export-ready).`

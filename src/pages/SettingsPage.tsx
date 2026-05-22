@@ -46,6 +46,12 @@ export default function SettingsPage() {
             onChange={(defaultKeywordPattern) => setDraft((current) => ({ ...current, defaultKeywordPattern }))}
             helpText="Use {City} and {State} tokens."
           />
+          <TextInput
+            label="Media asset base URL (for Storagely paste)"
+            value={draft.mediaAssetBaseUrl}
+            onChange={(mediaAssetBaseUrl) => setDraft((current) => ({ ...current, mediaAssetBaseUrl }))}
+            helpText="Full site origin where /media-library/ images are hosted. Copy HTML rewrites image paths to this URL."
+          />
           <div className="lg:col-span-2">
             <TextArea
               label="Optional AI prompt settings"

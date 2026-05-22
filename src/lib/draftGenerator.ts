@@ -90,7 +90,6 @@ export const generateDraftSections = (
   const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
   const valueBullets = buildValueBullets(project);
   const storageTypes = selectedStorageTypes(project, images);
-  const storageText = sentenceList(storageTypes, "storage options selected for this location");
   const landmarks = sentenceList(project.localContext.landmarks, "nearby areas you plan to reference");
   const neighborhoods = sentenceList(project.localContext.neighborhoods, "nearby neighborhoods");
   const nearby = selectedFacilities(project, facilities);
@@ -122,7 +121,7 @@ export const generateDraftSections = (
       id: "storage",
       label: "Section 3",
       heading: "Types of Storage",
-      body: `This page highlights ${storageText}. Each storage card should use accurate copy; link the H3 only when an approved destination URL exists in the image library.`,
+      body: `Choose storage types for this location. Card copy appears under each image; link headings only when a destination URL exists in Master Data.`,
       bullets: storageDescriptions.length > 0 ? storageDescriptions : storageTypes,
     },
     {
@@ -160,9 +159,7 @@ export const generateDraftSections = (
 
 export const generateDraftTitleTag = (project: LocationProject): string => {
   const place = cityState(project);
-  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
-  const keyword = project.seo.primaryKeyword || `Self Storage Units in ${place}`;
-  return `${keyword} | ${facilityName}`.slice(0, 68);
+  return `Self Storage in ${place} | My Garage Self Storage`.slice(0, 68);
 };
 
 export const generateDraftMetaDescription = (project: LocationProject): string => {

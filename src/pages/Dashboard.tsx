@@ -1,15 +1,17 @@
 import { ArrowRight, CopyPlus, Download, FileUp, Layers, Plus, Trash2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import BatchExportPanel from "../components/BatchExportPanel";
 import CompletionProgress from "../components/CompletionProgress";
 import LaunchChecklist from "../components/LaunchChecklist";
 import LaunchReadinessPanel from "../components/LaunchReadinessPanel";
 import { auditStatusFromScore, AuditStatusBadge, StatusBadge } from "../components/StatusBadge";
+import { loadDashboardSession, saveDashboardSession } from "../lib/dashboardSession";
 import { getLaunchReadiness } from "../lib/launchReadiness";
 import {
   countProjectsByQueue,
   filterProjectsByQueue,
+  findMostRecentProject,
   findNextIncompleteProject,
   getProjectQueueStatus,
   type ProjectQueueFilter,
@@ -34,8 +36,23 @@ export default function Dashboard() {
   const { projects, facilities, images, deleteProject, duplicateProject, importProjects } = useProjects();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [importMessage, setImportMessage] = useState("");
-  const [queueFilter, setQueueFilter] = useState<ProjectQueueFilter>("all");
+  const [session, setSession] = useState(loadDashboardSession);
+  const [queueFilter, setQueueFilter] = useState(session.queueFilter);
+
+  useEffect(() => {
+    if (location.pathname === "/") {
+      const latest = loadDashboardSession();
+      setSession(latest);
+      setQueueFilter(latest.queueFilter);
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const next = saveDashboardSession({ queueFilter });
+    setSession(next);
+  }, [queueFilter]);
 
   const counts = useMemo(() => countProjectsByQueue(projects, facilities, images), [projects, facilities, images]);
   const filteredProjects = useMemo(
@@ -43,6 +60,17 @@ export default function Dashboard() {
     [projects, queueFilter, facilities, images],
   );
   const nextIncomplete = useMemo(() => findNextIncompleteProject(projects, facilities, images), [projects, facilities, images]);
+  const mostRecentProject = useMemo(() => findMostRecentProject(projects), [projects]);
+  const lastProject = useMemo(
+    () => (session.lastProjectId ? projects.find((project) => project.id === session.lastProjectId) : undefined),
+    [projects, session.lastProjectId],
+  );
+  const resumeProject = lastProject ?? nextIncomplete ?? mostRecentProject;
+  const resumeSource = lastProject ? "last" : nextIncomplete ? "next" : "recent";
+
+  const rememberProject = (projectId: string, tab = "Brief") => {
+    setSession(saveDashboardSession({ lastProjectId: projectId, lastWorkspaceTab: tab }));
+  };
 
   const downloadBackup = () => {
     const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
@@ -100,6 +128,54 @@ export default function Dashboard() {
 
       {importMessage ? <div className="storiq-alert storiq-alert-info">{importMessage}</div> : null}
 
+      {projects.length > 0 && resumeProject ? (
+        <section className="storiq-highlight-banner flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="storiq-section-title">Pick up where you left off</h2>
+            <p className="storiq-section-subtitle">
+              {resumeSource === "last" ? (
+                <>
+                  Last opened: {resumeProject.locationIdentity.facilityName || "Untitled"}
+                  {session.lastWorkspaceTab ? ` on the ${session.lastWorkspaceTab} tab` : ""}
+                  {" · "}
+                  {getProjectQueueStatus(resumeProject, facilities, images).label}
+                </>
+              ) : resumeSource === "next" ? (
+                <>
+                  Next incomplete: {resumeProject.locationIdentity.facilityName || "Untitled"}
+                  {" · "}
+                  {getProjectQueueStatus(resumeProject, facilities, images).label}
+                </>
+              ) : (
+                <>
+                  Most recently updated: {resumeProject.locationIdentity.facilityName || "Untitled"}
+                  {" · "}
+                  {getProjectQueueStatus(resumeProject, facilities, images).label}
+                </>
+              )}
+            </p>
+            {queueFilter !== "all" ? (
+              <p className="storiq-section-subtitle mt-1 text-sm opacity-80">
+                Queue filter saved: {filterOptions.find((option) => option.id === queueFilter)?.label ?? queueFilter}
+              </p>
+            ) : null}
+          </div>
+          <Link
+            to={`/locations/${resumeProject.id}`}
+            onClick={() =>
+              rememberProject(
+                resumeProject.id,
+                resumeSource === "last" ? (session.lastWorkspaceTab ?? "Brief") : "Brief",
+              )
+            }
+            className="storiq-btn storiq-btn-primary"
+          >
+            Open workspace
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </section>
+      ) : null}
+
       <LaunchChecklist />
 
       {projects.length > 0 ? <BatchExportPanel /> : null}
@@ -130,22 +206,6 @@ export default function Dashboard() {
         </article>
       </section>
 
-      {nextIncomplete ? (
-        <section className="storiq-card storiq-card--padding flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="storiq-section-title">Continue work</h2>
-            <p className="storiq-section-subtitle">
-              Next incomplete: {nextIncomplete.locationIdentity.facilityName || "Untitled"} —{" "}
-              {getProjectQueueStatus(nextIncomplete, facilities, images).label}
-            </p>
-          </div>
-          <Link to={`/locations/${nextIncomplete.id}`} className="storiq-btn storiq-btn-primary">
-            Open workspace
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </section>
-      ) : null}
-
       {projects.length === 0 ? (
         <section className="storiq-empty">
           <h2 className="storiq-empty-title">No location projects yet</h2>
@@ -161,6 +221,9 @@ export default function Dashboard() {
         <>
           <section className="storiq-card storiq-card--padding">
             <h2 className="storiq-section-title">Project queue</h2>
+            <p className="storiq-section-subtitle">
+              Your queue filter is saved automatically{queueFilter !== "all" ? ` — currently showing ${filterOptions.find((option) => option.id === queueFilter)?.label?.toLowerCase() ?? queueFilter} only` : ""}.
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {filterOptions.map((option) => (
                 <button
@@ -192,12 +255,23 @@ export default function Dashboard() {
                       : "storiq-badge-blocked";
 
                 return (
-                  <article key={project.id} className="storiq-card storiq-card--padding">
+                  <article
+                    key={project.id}
+                    className={`storiq-card storiq-card--padding${session.lastProjectId === project.id ? " ring-2 ring-[var(--storiq-accent)]" : ""}`}
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <Link to={`/locations/${project.id}`} className="storiq-link text-lg font-semibold" style={{ fontSize: "1.0625rem" }}>
+                        <Link
+                          to={`/locations/${project.id}`}
+                          onClick={() => rememberProject(project.id)}
+                          className="storiq-link text-lg font-semibold"
+                          style={{ fontSize: "1.0625rem" }}
+                        >
                           {project.locationIdentity.facilityName || "Untitled Location"}
                         </Link>
+                        {session.lastProjectId === project.id ? (
+                          <span className="storiq-badge storiq-badge-pass mt-2 inline-block">Last opened</span>
+                        ) : null}
                         <p className="storiq-section-subtitle mt-1">
                           {[project.locationIdentity.city, project.locationIdentity.state].filter(Boolean).join(", ") || "City and state missing"}
                         </p>
@@ -233,7 +307,12 @@ export default function Dashboard() {
                           <CopyPlus className="h-4 w-4" aria-hidden="true" />
                           Duplicate
                         </button>
-                        <button type="button" onClick={() => deleteProject(project.id)} className="storiq-btn storiq-btn-danger storiq-btn-sm">
+                        <button type="button" onClick={() => {
+                            deleteProject(project.id);
+                            if (session.lastProjectId === project.id) {
+                              setSession(saveDashboardSession({ lastProjectId: null, lastWorkspaceTab: null }));
+                            }
+                          }} className="storiq-btn storiq-btn-danger storiq-btn-sm">
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                           Delete
                         </button>

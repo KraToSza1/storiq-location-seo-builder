@@ -1,8 +1,9 @@
+/** Static CSS from client master `public/templates/final-master-template.md` (Copperas Cove). Nearby image vars/classes are injected at export time. */
 export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works even if Storagely strips <link> tags from <head> */
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
   :root {
-    /* ---- Brand tokens (swap per client) ---- */
+    /* ---- Brand tokens ---- */
     --primary-color: #0F2165;
     --primary-color-dark: #0a1647;
     --text-color: #2a2a2a;
@@ -29,24 +30,7 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     box-sizing: border-box;
   }
 
-  .facility-template .facility-hero {
-    margin: 0 0 1.5rem;
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-card);
-  }
-
-  .facility-template .facility-hero img {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 420px;
-    object-fit: cover;
-  }
-
-  /* High-specificity font-family override.
-     Storagely's site CSS likely uses 'body p', '.content li' etc., which we
-     beat with .facility-template + element selectors (two-class specificity). */
+  /* High-specificity font-family override (Storagely defense) */
   .facility-template,
   .facility-template p,
   .facility-template li,
@@ -84,13 +68,7 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     text-align: center;
   }
 
-  /* High-specificity color override for brand section.
-     Storagely's rule \`#location_info .location_about_left_col p !important\`
-     is (1,2,1) specificity. We need to beat (1,2,1) — and because their CSS
-     loads AFTER ours in source order, we can't tie; we have to outrank them.
-     Adding .facility-section to the selector chain gives us (1,3,1).
-     Safe: this rule only affects elements INSIDE #facility-template AND
-     .facility-section AND .facility-section--brand. */
+  /* High-specificity color override for brand section (Storagely defense) */
   #facility-template .facility-section.facility-section--brand,
   #facility-template .facility-section.facility-section--brand h2,
   #facility-template .facility-section.facility-section--brand h3,
@@ -138,9 +116,10 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
   }
 
   /* ---- Storage type grid ---- */
+  /* 6 cards: 3 columns desktop, 2 columns tablet, 1 column mobile */
   .storage-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 24px;
     margin-top: 24px;
   }
@@ -159,9 +138,7 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   }
 
-  /* Linked storage card heading (e.g., Vehicle Storage links to category page).
-     The h3 stays styled as a heading; the <a> inside inherits color and removes
-     underline, with a subtle hover state to signal interactivity. */
+  /* Linked storage card heading */
   #facility-template .storage-card__heading-link,
   #facility-template .storage-card__heading-link:visited {
     color: inherit !important;
@@ -188,6 +165,10 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     background-color: #e8e8e8;
   }
 
+  #facility-template .storage-card__image--empty {
+    min-height: 200px;
+  }
+
   #facility-template .facility-section .storage-card h3 {
     margin-bottom: 10px;
     font-size: 24px !important;
@@ -197,7 +178,7 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     font-size: 16px !important;
   }
 
-  /* ---- Nearby Locations cards (vertical, side-by-side) ---- */
+  /* ---- Nearby Locations cards ---- */
   .locations-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -230,10 +211,6 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     background-repeat: no-repeat;
     background-color: #e8e8e8;
   }
-
-  .location-card__image--temple { background-image: var(--img-loc-temple); }
-  .location-card__image--killeen { background-image: var(--img-loc-killeen); }
-  .location-card__image--morgans { background-image: var(--img-loc-morgans); }
 
   .location-card__content {
     display: flex;
@@ -299,11 +276,7 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     transition: color var(--transition);
   }
 
-  /* Reset h3 styling inside summary so FAQ layout stays clean.
-     h3 inside summary should inherit the summary's font-size/weight, not
-     Storagely's default h3 sizing. Storagely uses !important on h3 rules,
-     so we need !important here to win the cascade. The .facility-section
-     scope bumps specificity to (1,3,1) to beat their (1,2,1) ID-scoped rules. */
+  /* Reset h3 styling inside summary so FAQ layout stays clean */
   #facility-template .facility-section .faq-item summary h3 {
     display: inline !important;
     margin: 0 !important;
@@ -395,8 +368,6 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     color: var(--text-color);
   }
 
-  /* Constrain the CTA button inside the map info column so it sizes to its
-     text content instead of stretching to fill the flex column width. */
   #facility-template .map-section__info .cta-button {
     align-self: flex-start;
     width: auto;
@@ -434,10 +405,8 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     .facility-section { padding: 22px; }
     .facility-list { columns: 1; }
 
-    /* Location cards drop to 2 columns at tablet width */
     .locations-grid { grid-template-columns: repeat(2, 1fr); }
 
-    /* Map section stacks vertically on mobile/tablet */
     .map-section { grid-template-columns: 1fr; gap: 24px; }
     .map-section__map { min-height: 300px; }
     .map-section__map iframe { min-height: 300px; }
@@ -446,7 +415,5 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
   @media (max-width: 560px) {
     .storage-grid { grid-template-columns: 1fr; }
     .facility-section { padding: 18px; }
-
-    /* Location cards stack to single column on mobile */
     .locations-grid { grid-template-columns: 1fr; }
   }`;

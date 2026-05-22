@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   generateDraftFaqs,
   generateDraftMetaDescription,
@@ -24,49 +24,18 @@ import {
 } from "../lib/imageLibrary";
 import { sampleFacilities } from "../lib/sampleFacilities";
 import { buildAiPrompt } from "../lib/promptBuilder";
+import { resolvePublishAssetBaseUrl } from "../lib/assetUrls";
 import { cloneProject, defaultSettings, mergeWithProjectDefaults } from "../lib/projectDefaults";
 import { runSEOAudit } from "../lib/seoAudit";
 import { renderFaqJsonLd, renderStoragelyHtml } from "../lib/templateRenderer";
 import { getProjectValidation } from "../lib/validators";
-import type {
-  AppSettings,
-  FacilityImportResult,
-  ImageImportResult,
-  LocationProject,
-  NearbyFacility,
-  StorageImage,
-} from "../types/storiq";
+import type { AppSettings, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
+import { ProjectsContext, type ProjectsContextValue } from "./projectsContextRef";
 
 const PROJECTS_KEY = "storiq-location-projects-v1";
 const SETTINGS_KEY = "storiq-settings-v1";
 const FACILITIES_KEY = "storiq-master-facilities-v1";
 const IMAGES_KEY = "storiq-master-images-v1";
-
-interface ProjectsContextValue {
-  projects: LocationProject[];
-  settings: AppSettings;
-  facilities: NearbyFacility[];
-  images: StorageImage[];
-  addProject: (project: LocationProject) => LocationProject;
-  updateProject: (id: string, updater: (project: LocationProject) => LocationProject) => void;
-  deleteProject: (id: string) => void;
-  duplicateProject: (id: string) => LocationProject | undefined;
-  importProjects: (json: string) => { imported: number; error?: string };
-  updateSettings: (settings: AppSettings) => void;
-  importFacilitiesCsv: (csv: string) => FacilityImportResult;
-  saveFacility: (facility: NearbyFacility) => { error?: string };
-  deleteFacility: (id: string) => void;
-  resetFacilities: () => void;
-  exportFacilitiesJson: () => string;
-  importImagesCsv: (csv: string) => ImageImportResult;
-  importImagesMarkdown: (markdown: string) => ImageImportResult;
-  saveImage: (image: StorageImage) => void;
-  deleteImage: (id: string) => void;
-  resetImages: () => void;
-  exportImagesJson: () => string;
-}
-
-const ProjectsContext = createContext<ProjectsContextValue | undefined>(undefined);
 
 const LEGACY_STORAGE_KEYS: Record<string, string[]> = {
   [PROJECTS_KEY]: ["storeiq-location-projects-v1", "StorIQ-location-projects-v1"],
@@ -120,7 +89,9 @@ export const prepareProject = (
   project: LocationProject,
   facilities: NearbyFacility[] = defaultFacilities,
   images: StorageImage[] = defaultImages,
+  settings: AppSettings = defaultSettings,
 ): LocationProject => {
+  const publishAssetBaseUrl = resolvePublishAssetBaseUrl(settings);
   const draftTitleTag = generateDraftTitleTag(project);
   const draftMetaDescription = generateDraftMetaDescription(project);
   const draftSections = generateDraftSections(project, facilities, images);
@@ -137,7 +108,7 @@ export const prepareProject = (
       lastDraftedAt: new Date().toISOString(),
     },
   };
-  const html = renderStoragelyHtml(withDraft, facilities, images);
+  const html = renderStoragelyHtml(withDraft, facilities, images, publishAssetBaseUrl);
   const faqJsonLd = renderFaqJsonLd(withDraft, images);
   const aiPrompt = buildAiPrompt(
     {
@@ -214,21 +185,40 @@ const loadImages = (): StorageImage[] => {
   return syncImagesWithLocalLibrary(list);
 };
 
-const loadProjects = (facilities: NearbyFacility[], images: StorageImage[]): LocationProject[] => {
+const loadProjects = (facilities: NearbyFacility[], images: StorageImage[], settings: AppSettings): LocationProject[] => {
   const stored = readJson<Partial<LocationProject>[]>(PROJECTS_KEY, []);
-  return stored.map((project) => prepareProject(mergeWithProjectDefaults(project), facilities, images));
+  return stored.map((project) => {
+    try {
+      return prepareProject(mergeWithProjectDefaults(project), facilities, images, settings);
+    } catch (error) {
+      console.error("[StorIQ] Failed to prepare project during load:", project.id, error);
+      return mergeWithProjectDefaults(project);
+    }
+  });
 };
 
-const loadSettings = (): AppSettings => ({
-  ...defaultSettings,
-  ...readJson<Partial<AppSettings>>(SETTINGS_KEY, {}),
-});
+const loadSettings = (): AppSettings => {
+  const stored = readJson<Partial<AppSettings>>(SETTINGS_KEY, {});
+  return {
+    ...defaultSettings,
+    ...stored,
+    mediaAssetBaseUrl: stored.mediaAssetBaseUrl?.trim() || defaultSettings.mediaAssetBaseUrl,
+  };
+};
 
 export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const [facilities, setFacilities] = useState<NearbyFacility[]>(loadFacilities);
   const [images, setImages] = useState<StorageImage[]>(loadImages);
-  const [projects, setProjects] = useState<LocationProject[]>(() => loadProjects(loadFacilities(), loadImages()));
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const [projects, setProjects] = useState<LocationProject[]>(() => {
+    try {
+      const initialSettings = loadSettings();
+      return loadProjects(loadFacilities(), loadImages(), initialSettings);
+    } catch (error) {
+      console.error("[StorIQ] Failed to hydrate projects from localStorage:", error);
+      return [];
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
@@ -246,9 +236,12 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(IMAGES_KEY, JSON.stringify(images));
   }, [images]);
 
-  const refreshProjects = useCallback((nextFacilities: NearbyFacility[], nextImages: StorageImage[]) => {
-    setProjects((current) => current.map((project) => prepareProject(project, nextFacilities, nextImages)));
-  }, []);
+  const refreshProjects = useCallback(
+    (nextFacilities: NearbyFacility[], nextImages: StorageImage[]) => {
+      setProjects((current) => current.map((project) => prepareProject(project, nextFacilities, nextImages, settings)));
+    },
+    [settings],
+  );
 
   const addProject = useCallback(
     (project: LocationProject) => {
@@ -259,11 +252,12 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         },
         facilities,
         images,
+        settings,
       );
       setProjects((current) => [prepared, ...current]);
       return prepared;
     },
-    [facilities, images],
+    [facilities, images, settings],
   );
 
   const updateProject = useCallback(
@@ -281,11 +275,12 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
             },
             facilities,
             images,
+            settings,
           );
         }),
       );
     },
-    [facilities, images],
+    [facilities, images, settings],
   );
 
   const deleteProject = useCallback((id: string) => {
@@ -299,11 +294,11 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         return undefined;
       }
 
-      const duplicate = prepareProject(cloneProject(found), facilities, images);
+      const duplicate = prepareProject(cloneProject(found), facilities, images, settings);
       setProjects((current) => [duplicate, ...current]);
       return duplicate;
     },
-    [facilities, images, projects],
+    [facilities, images, projects, settings],
   );
 
   const importProjects = useCallback(
@@ -311,7 +306,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = JSON.parse(json) as Partial<LocationProject> | Partial<LocationProject>[];
         const incoming = Array.isArray(parsed) ? parsed : [parsed];
-        const prepared = incoming.map((project) => prepareProject(mergeWithProjectDefaults(project), facilities, images));
+        const prepared = incoming.map((project) =>
+          prepareProject(mergeWithProjectDefaults(project), facilities, images, settings),
+        );
         setProjects((current) => [...prepared, ...current]);
         return { imported: prepared.length };
       } catch (error) {
@@ -321,7 +318,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         };
       }
     },
-    [facilities, images],
+    [facilities, images, settings],
   );
 
   const updateSettings = useCallback((nextSettings: AppSettings) => {
@@ -373,13 +370,14 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
               },
               nextFacilities,
               images,
+              settings,
             ),
           ),
         );
         return nextFacilities;
       });
     },
-    [images],
+    [images, settings],
   );
 
   const resetFacilities = useCallback(() => {
@@ -444,13 +442,14 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
               },
               facilities,
               next,
+              settings,
             ),
           ),
         );
         return next;
       });
     },
-    [facilities],
+    [facilities, settings],
   );
 
   const resetImages = useCallback(() => {

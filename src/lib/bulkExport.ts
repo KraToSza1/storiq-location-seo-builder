@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { buildExportFilename, exportChecksPass, runExportChecks } from "./exportChecks";
-import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
+import { exportHtmlForPublish } from "./htmlExport";
+import type { AppSettings, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 export const getExportReadyProjects = (
   projects: LocationProject[],
@@ -16,12 +17,13 @@ export const downloadExportReadyZip = async (
   projects: LocationProject[],
   facilities: NearbyFacility[],
   images: StorageImage[],
+  settings?: Pick<AppSettings, "mediaAssetBaseUrl">,
 ): Promise<{ count: number; skipped: number }> => {
   const ready = getExportReadyProjects(projects, facilities, images);
   const zip = new JSZip();
 
   ready.forEach((project) => {
-    zip.file(buildExportFilename(project), project.generated.html);
+    zip.file(buildExportFilename(project), exportHtmlForPublish(project.generated.html, settings));
   });
 
   const blob = await zip.generateAsync({ type: "blob" });

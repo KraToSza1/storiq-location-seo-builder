@@ -1,3 +1,4 @@
+import { DEFAULT_PUBLISH_ASSET_BASE } from "./assetUrls";
 import { normalizePrimaryKeyword } from "./keywordUtils";
 import type { AppSettings, LocationProject } from "../types/storiq";
 
@@ -6,6 +7,7 @@ export const defaultSettings: AppSettings = {
   defaultKeywordPattern: "self storage units in {City}, {State}",
   aiPromptSettings:
     "Write clear, locally specific copy for a Storagely HTML location page. Keep claims factual and avoid unverifiable distance claims.",
+  mediaAssetBaseUrl: DEFAULT_PUBLISH_ASSET_BASE,
 };
 
 const blankGenerated = {

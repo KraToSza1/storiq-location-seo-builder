@@ -1,5 +1,5 @@
 import { CopyPlus, Save, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AuditPanel from "../components/AuditPanel";
 import CompletionProgress from "../components/CompletionProgress";
@@ -16,6 +16,8 @@ import PromptPreview from "../components/PromptPreview";
 import { StatusBadge } from "../components/StatusBadge";
 import FacilityLocationImageSelector from "../components/FacilityLocationImageSelector";
 import StorageTypeSelector from "../components/StorageTypeSelector";
+import { exportHtmlForPublish } from "../lib/htmlExport";
+import { loadDashboardSession, saveDashboardSession } from "../lib/dashboardSession";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { buildPrimaryKeyword } from "../lib/projectDefaults";
 import { useProjects } from "../state/ProjectsContext";
@@ -40,8 +42,51 @@ export default function LocationWorkspace() {
   const { id } = useParams();
   const { projects, facilities, settings, updateProject, deleteProject, duplicateProject } = useProjects();
   const project = projects.find((item) => item.id === id);
-  const [activeTab, setActiveTab] = useState<Tab>("Brief");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (!id) {
+      return "Brief";
+    }
+    const session = loadDashboardSession();
+    if (
+      session.lastProjectId === id &&
+      session.lastWorkspaceTab &&
+      (tabs as readonly string[]).includes(session.lastWorkspaceTab)
+    ) {
+      return session.lastWorkspaceTab as Tab;
+    }
+    return "Brief";
+  });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!project || project.id !== id) {
+      return;
+    }
+
+    const session = loadDashboardSession();
+    const restoredTab =
+      session.lastProjectId === id &&
+      session.lastWorkspaceTab &&
+      (tabs as readonly string[]).includes(session.lastWorkspaceTab)
+        ? (session.lastWorkspaceTab as Tab)
+        : "Brief";
+
+    setActiveTab(restoredTab);
+    saveDashboardSession({
+      lastProjectId: project.id,
+      lastWorkspaceTab: restoredTab,
+    });
+  }, [id, project?.id]);
+
+  const selectTab = (tab: Tab) => {
+    setActiveTab(tab);
+    if (project) {
+      saveDashboardSession({
+        lastProjectId: project.id,
+        lastWorkspaceTab: tab,
+      });
+    }
+  };
 
   const pageTitle = useMemo(() => project?.locationIdentity.facilityName || "Location Workspace", [project]);
 
@@ -307,7 +352,7 @@ export default function LocationWorkspace() {
     if (activeTab === "HTML Preview") {
       return (
         <section className="storiq-card storiq-card--padding">
-          <HtmlPreview html={project.generated.html} />
+          <HtmlPreview html={exportHtmlForPublish(project.generated.html, settings)} />
         </section>
       );
     }
@@ -368,7 +413,7 @@ export default function LocationWorkspace() {
             <button
               key={tab}
               type="button"
-              onClick={() => setActiveTab(tab)}
+              onClick={() => selectTab(tab)}
               className={`storiq-tab${activeTab === tab ? " storiq-tab--active" : ""}`}
             >
               {tab}

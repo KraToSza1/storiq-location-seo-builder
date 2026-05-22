@@ -3,7 +3,8 @@ import CopyButton from "./CopyButton";
 import LaunchReadinessPanel from "./LaunchReadinessPanel";
 import PublishedPageQaPanel from "./PublishedPageQaPanel";
 import { buildExportFilename, exportChecksPass, runExportChecks } from "../lib/exportChecks";
-import { extractMainFragment, extractStoragelyPasteBody } from "../lib/htmlExport";
+import { exportHtmlForPublish, extractMainFragment, extractStoragelyPasteBody } from "../lib/htmlExport";
+import { resolvePublishAssetBaseUrl } from "../lib/assetUrls";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject } from "../types/storiq";
 
@@ -33,8 +34,9 @@ const checkIcon = { pass: CheckCircle2, warning: AlertTriangle, fail: XCircle };
 const checkClass = { pass: "storiq-alert storiq-alert-success", warning: "storiq-alert storiq-alert-warning", fail: "storiq-alert storiq-alert-danger" };
 
 export default function ExportPanel({ project }: { project: LocationProject }) {
-  const { facilities, images } = useProjects();
-  const html = project.generated.html;
+  const { facilities, images, settings } = useProjects();
+  const html = exportHtmlForPublish(project.generated.html, settings);
+  const assetBase = resolvePublishAssetBaseUrl(settings);
   const exportChecks = runExportChecks(project, html, images, facilities);
   const canExport = exportChecksPass(exportChecks);
   const filename = buildExportFilename(project);
@@ -72,6 +74,7 @@ export default function ExportPanel({ project }: { project: LocationProject }) {
         <h2 className="storiq-section-title">Export Assets</h2>
         <p className="storiq-section-subtitle">
           Download filename: {filename} — full HTML document, or use fragment mode if Storagely strips the outer shell.
+          Images use absolute URLs from {assetBase} so they load on mygarageselfstorage.com (change in Settings → Media asset base URL).
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <CopyButton value={html} label="Copy Full HTML" />

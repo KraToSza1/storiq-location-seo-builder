@@ -12,6 +12,7 @@ import RequiredFieldBadge from "../components/RequiredFieldBadge";
 import StorageTypeSelector from "../components/StorageTypeSelector";
 import WizardStep from "../components/WizardStep";
 import { generateDraftFaqs } from "../lib/draftGenerator";
+import { saveDashboardSession } from "../lib/dashboardSession";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { enhanceProjectFromLibraries, matchNearbyIdsFromContent } from "../lib/projectEnhancements";
 import { buildPrimaryKeyword, createLocationProject } from "../lib/projectDefaults";
@@ -111,6 +112,10 @@ export default function LocationWizard() {
             },
           };
     const saved = addProject(enhanceProjectFromLibraries(withFaqs, facilities, images));
+    saveDashboardSession({
+      lastProjectId: saved.id,
+      lastWorkspaceTab: "Brief",
+    });
     navigate(`/locations/${saved.id}`);
   };
 

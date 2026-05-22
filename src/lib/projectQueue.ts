@@ -56,6 +56,16 @@ export const filterProjectsByQueue = (
   return projects.filter((project) => getProjectQueueStatus(project, facilities, images).filter === filter);
 };
 
+export const findMostRecentProject = (projects: LocationProject[]): LocationProject | undefined => {
+  if (projects.length === 0) {
+    return undefined;
+  }
+
+  return [...projects].sort(
+    (left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  )[0];
+};
+
 export const findNextIncompleteProject = (
   projects: LocationProject[],
   facilities: NearbyFacility[],

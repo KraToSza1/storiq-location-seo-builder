@@ -1,16 +1,38 @@
+import { DEFAULT_PUBLISH_ASSET_BASE, toAbsoluteMediaUrl } from "./assetUrls";
 import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById, isLinkableStorageType } from "./imageLibrary";
 import { generateDraftTitleTag } from "./draftGenerator";
-import { getFacilityLocationHeroImage } from "./projectEnhancements";
 import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
+import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
 import { cityState, escapeHtml, formatTelHref, safeUrl, slugify } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
-const listMarkup = (items: string[], fallback: string): string => {
-  const values = items.length > 0 ? items : [fallback];
-  return values.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n");
+const publishMediaUrl = (url: string | undefined | null, publishAssetBaseUrl: string): string =>
+  toAbsoluteMediaUrl(url, publishAssetBaseUrl);
+
+const nearbyLocationClass = (facility: NearbyFacility): string =>
+  slugify(`${facility.city}-${facility.facilityName || facility.id}`);
+
+const renderNearbyLocationCss = (facilities: NearbyFacility[], publishAssetBaseUrl: string): string => {
+  const withImages = facilities.filter((facility) => facility.imageUrl?.trim());
+  if (withImages.length === 0) {
+    return "";
+  }
+
+  const varLines = withImages.map((facility) => {
+    const key = nearbyLocationClass(facility);
+    const url = publishMediaUrl(facility.imageUrl, publishAssetBaseUrl).replace(/'/g, "%27");
+    return `    --img-loc-${key}: url('${url}');`;
+  });
+
+  const classLines = withImages.map((facility) => {
+    const key = nearbyLocationClass(facility);
+    return `  .location-card__image--${key} { background-image: var(--img-loc-${key}); }`;
+  });
+
+  return `:root {\n${varLines.join("\n")}\n  }\n\n${classLines.join("\n")}\n\n`;
 };
 
 const findDraftSection = (project: LocationProject, id: string): DraftSection | undefined =>
@@ -25,6 +47,11 @@ const selectedStorageImages = (project: LocationProject, images: StorageImage[])
   project.selectedStorageImages
     .map((id) => getStorageImageById(images, id))
     .filter((image): image is StorageImage => Boolean(image));
+
+const listMarkup = (items: string[], fallback: string): string => {
+  const values = items.length > 0 ? items : [fallback];
+  return values.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n");
+};
 
 const renderValueList = (project: LocationProject): string => {
   const valueDraft = findDraftSection(project, "value");
@@ -45,59 +72,54 @@ const storageCardDescription = (image: StorageImage, project: LocationProject, i
   const storageDraft = findDraftSection(project, "storage");
   const selected = selectedStorageImages(project, images);
   const index = selected.findIndex((item) => item.id === image.id);
-  if (storageDraft?.bullets?.[index]) {
+  if (storageDraft?.bullets?.[index] && !isEditorInstruction(storageDraft.bullets[index])) {
     return storageDraft.bullets[index];
   }
-  return `${image.category} at ${project.locationIdentity.facilityName || "this facility"} supports local storage needs in ${cityState(project) || "the area"}. Confirm availability before publishing.`;
+  return `${image.category} at ${project.locationIdentity.facilityName || "this facility"} supports local storage needs in ${cityState(project) || "the area"}.`;
 };
 
-const renderStorageCard = (image: StorageImage, project: LocationProject, images: StorageImage[]): string => {
+const renderStorageCard = (
+  image: StorageImage,
+  project: LocationProject,
+  images: StorageImage[],
+  publishAssetBaseUrl: string,
+): string => {
   const alt = buildStorageImageAlt(image, project);
   const description = storageCardDescription(image, project, images);
   const heading =
     image.destinationUrl && isLinkableStorageType(image.category)
       ? `<h3><a href="${safeUrl(image.destinationUrl)}" class="storage-card__heading-link">${escapeHtml(image.category)}</a></h3>`
       : `<h3>${escapeHtml(image.category)}</h3>`;
-
-  return `
-      <div class="storage-card">
-        <img
+  const imageSrc = publishMediaUrl(image.imageUrl, publishAssetBaseUrl);
+  const imageMarkup = imageSrc
+    ? `<img
           class="storage-card__image"
-          src="${safeUrl(image.imageUrl)}"
+          src="${safeUrl(imageSrc)}"
           alt="${escapeHtml(alt)}"
           width="400"
           height="320"
           loading="lazy"
-          decoding="async">
+          decoding="async">`
+    : `<div class="storage-card__image storage-card__image--empty" role="img" aria-label="${escapeHtml(alt)}"></div>`;
+
+  return `
+      <div class="storage-card">
+        ${imageMarkup}
         ${heading}
         <p>${escapeHtml(description)}</p>
       </div>`;
 };
 
-const renderNearbyLocationCssVars = (facilities: NearbyFacility[]): string => {
-  const lines = facilities
-    .filter((facility) => facility.imageUrl?.trim())
-    .map((facility) => {
-      const key = slugify(facility.city || facility.facilityName);
-      return `    --img-loc-${key}: url('${facility.imageUrl!.replace(/'/g, "%27")}');`;
-    });
-
-  if (lines.length === 0) {
-    return "";
-  }
-
-  return `:root {\n${lines.join("\n")}\n  }\n\n`;
-};
-
 const renderNearbyCard = (facility: NearbyFacility, project: LocationProject): string => {
-  const imageKey = slugify(facility.city || facility.facilityName);
-  const imageClass = facility.imageUrl ? `location-card__image--${imageKey}` : "";
   const place = cityState(project);
   const linkLabel = `View ${facility.city} Storage`;
+  const imageKey = nearbyLocationClass(facility);
+  const imageClass = facility.imageUrl?.trim() ? `location-card__image--${imageKey}` : "";
+  const imageAlt = `Self storage units in ${facility.city}, ${facility.state} near ${place}`;
 
   return `
       <article class="location-card">
-        <div class="location-card__image ${imageClass}" role="img" aria-label="Self storage units in ${escapeHtml(facility.city)}, ${escapeHtml(facility.state)} near ${escapeHtml(place)}"></div>
+        <div class="location-card__image ${imageClass}" role="img" aria-label="${escapeHtml(imageAlt)}"></div>
         <div class="location-card__content">
           <h3>${escapeHtml(facility.city)}, ${escapeHtml(facility.state)}</h3>
           <p>${escapeHtml(
@@ -115,7 +137,7 @@ const renderLocalParagraphs = (project: LocationProject): string => {
   const { localContext } = project;
   const paragraphs: string[] = [];
 
-  if (localDraft?.body?.trim()) {
+  if (localDraft?.body?.trim() && !isEditorInstruction(localDraft.body)) {
     localDraft.body
       .split(/\n{2,}/)
       .map((part) => part.trim())
@@ -126,7 +148,7 @@ const renderLocalParagraphs = (project: LocationProject): string => {
   if (paragraphs.length === 0) {
     paragraphs.push(
       `<p>${escapeHtml(
-        `${project.locationIdentity.facilityName || "This facility"} serves customers across ${place}. Add verified local landmarks and neighborhoods in Step 5 before publishing final copy.`,
+        `${project.locationIdentity.facilityName || "My Garage Self Storage"} is proud to serve the ${place} community. Whether you live nearby or run a local business, our facility offers self storage solutions tailored to the area.`,
       )}</p>`,
     );
   }
@@ -153,10 +175,23 @@ const renderLocalParagraphs = (project: LocationProject): string => {
   return paragraphs.slice(0, 3).join("\n    ");
 };
 
+const renderMapDirections = (project: LocationProject, place: string): string => {
+  const mapDraft = findDraftSection(project, "map-cta");
+  const fallback = `Located in ${place}, our self storage facility offers convenient access for residents and businesses across the area. Find verified hours, storage types, and facility details for ${place}.`;
+
+  const body = exportDraftBody(mapDraft?.body, fallback);
+  return body
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => `<p>${escapeHtml(part)}</p>`)
+    .join("\n        ");
+};
+
 const extractMapIframe = (iframeCode: string): string => {
   const trimmed = iframeCode.trim();
   if (!trimmed) {
-    return `<p style="padding:2rem;text-align:center;color:#555;">Add a Google Maps embed in Step 3 before exporting.</p>`;
+    return `<p style="padding:2rem;text-align:center;color:#555;">Add a Google Maps embed in Step 7 before exporting.</p>`;
   }
   const match = trimmed.match(/<iframe\b[\s\S]*?<\/iframe>/i);
   return match?.[0] ?? trimmed;
@@ -173,29 +208,39 @@ export const renderStoragelyHtml = (
   project: LocationProject,
   facilities: NearbyFacility[] = defaultFacilities,
   images: StorageImage[] = defaultImages,
+  publishAssetBaseUrl: string = DEFAULT_PUBLISH_ASSET_BASE,
 ): string => {
   const place = cityState(project);
   const { city, state } = project.locationIdentity;
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
-  const keyword = project.seo.primaryKeyword || `self storage units in ${place}`;
   const featuresDraft = findDraftSection(project, "intro");
   const valueDraft = findDraftSection(project, "value");
-  const storageDraft = findDraftSection(project, "storage");
   const nearbyDraft = findDraftSection(project, "nearby");
   const faqItems = buildFaqItems(project, images);
   const faqJsonLd = renderFaqJsonLd(project, images);
   const nearby = selectedFacilities(project, facilities);
+  const nearbyCss = renderNearbyLocationCss(nearby, publishAssetBaseUrl);
   const storageCards = selectedStorageImages(project, images)
-    .map((image) => renderStorageCard(image, project, images))
+    .map((image) => renderStorageCard(image, project, images, publishAssetBaseUrl))
     .join("\n");
   const nearbyCards = nearby.map((facility) => renderNearbyCard(facility, project)).join("\n");
-  const nearbyCss = renderNearbyLocationCssVars(nearby);
   const phone = project.existingContent.phone.trim();
   const telHref = formatTelHref(phone);
-  const heroImageUrl = getFacilityLocationHeroImage(project, images);
-  const heroMarkup = heroImageUrl
-    ? `<figure class="facility-hero"><img src="${safeUrl(heroImageUrl)}" alt="${escapeHtml(facilityName)} in ${escapeHtml(city)}, ${escapeHtml(state)}" width="1200" height="480" loading="lazy" decoding="async"></figure>`
-    : "";
+
+  const introBody = exportDraftBody(
+    featuresDraft?.body,
+    `Our ${city || "local"} self storage facility offers everything you need to store with confidence. From practical amenities to flexible access, every feature is designed to make your storage experience secure, convenient, and hassle-free.`,
+  );
+
+  const valueBody = exportDraftBody(
+    valueDraft?.body,
+    `At My Garage Self Storage®, we make it easy to find dependable self storage near ${place}. Our flexible rental options, gated access, and modern storage features help you store your belongings without long-term commitments or unnecessary hassle.`,
+  );
+
+  const nearbyIntro = exportDraftBody(
+    nearbyDraft?.body,
+    `Looking for self storage outside of ${city}? My Garage Self Storage® has multiple convenient locations across the region. Explore our nearby facilities below to find the right fit for your community.`,
+  );
 
   const documentHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -203,65 +248,63 @@ export const renderStoragelyHtml = (
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${escapeHtml(renderPageTitle(project))}</title>
+
+<!-- Performance: preconnect to Google Fonts to speed up font loading. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<!-- STORIQ FACILITY TEMPLATE — CSS (see public/templates/final-master-template.md) -->
 <style>
 ${nearbyCss}${MASTER_TEMPLATE_CSS}
 </style>
 </head>
 <body>
 
+<!-- STORIQ FACILITY TEMPLATE — HTML (${escapeHtml(city)}, ${escapeHtml(state)}) -->
 <main id="facility-template" class="facility-template">
 
-  ${heroMarkup}
+  <!-- SECTION 1: Facility Features & Amenities -->
   <section class="facility-section facility-section--white">
     <h2>Features &amp; Amenities in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
-    <p>${escapeHtml(
-      featuresDraft?.body ||
-        `Our ${city} self storage facility offers practical amenities designed to make your storage experience secure, convenient, and hassle-free.`,
-    )}</p>
+    <p>${escapeHtml(introBody)}</p>
     <ul class="facility-list">
       ${listMarkup(project.existingContent.features, "Add confirmed Features &amp; Amenities before publishing.")}
     </ul>
   </section>
 
+  <!-- SECTION 2: Value Proposition -->
   <section class="facility-section facility-section--light">
     <h2>Why Choose Our Self Storage Units in ${escapeHtml(city)}, ${escapeHtml(state)}?</h2>
-    <p>${escapeHtml(
-      valueDraft?.body ||
-        `At ${facilityName}, we make it easy to find dependable self storage near ${place} with flexible rentals, helpful facility information, and practical storage features.`,
-    )}</p>
+    <p>${escapeHtml(valueBody)}</p>
     <ul class="facility-list facility-list--single facility-features">
       ${renderValueList(project)}
     </ul>
   </section>
 
+  <!-- SECTION 3: Types of Storage -->
   <section class="facility-section facility-section--white">
     <h2>Types of Self Storage Units Available in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
-    <p>${escapeHtml(
-      storageDraft?.body || "Select the storage types that apply to this location and confirm availability before publishing.",
-    )}</p>
     <div class="storage-grid">
-      ${storageCards || "<p>Select storage type images in Step 4 before exporting.</p>"}
+      ${storageCards || "<p>Select storage type images in Step 3 before exporting.</p>"}
     </div>
   </section>
 
+  <!-- SECTION 4: Local Content -->
   <section class="facility-section facility-section--light">
     <h2>Serving ${escapeHtml(place)} and Surrounding Areas</h2>
     ${renderLocalParagraphs(project)}
   </section>
 
+  <!-- SECTION 5: Nearby Locations -->
   <section class="facility-section facility-section--white">
     <h2>Other Nearby Locations at My Garage</h2>
-    <p>${escapeHtml(
-      nearbyDraft?.body ||
-        `Looking for self storage outside of ${city}? My Garage Self Storage has multiple convenient locations across the region.`,
-    )}</p>
+    <p>${escapeHtml(nearbyIntro)}</p>
     <div class="locations-grid">
       ${nearbyCards || "<p>Select 3–6 nearby facilities in Step 5 before exporting.</p>"}
     </div>
   </section>
 
+  <!-- SECTION 6: FAQs -->
   <section class="facility-section facility-section--light">
     <h2>FAQs about Self Storage in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
     ${faqItems
@@ -275,6 +318,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
       .join("\n")}
   </section>
 
+  <!-- SECTION 7: Map + Location + CTA -->
   <section class="facility-section facility-section--brand">
     <div class="map-section">
       <div class="map-section__map">
@@ -282,9 +326,9 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
       </div>
       <div class="map-section__info">
         <h2>Convenient Self Storage in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
-        <p><strong>${escapeHtml(facilityName)}</strong><br>
+        <p><strong>${escapeHtml(facilityName)}®</strong><br>
         ${escapeHtml(project.existingContent.address || "Address required")}</p>
-        <p>Find ${escapeHtml(keyword)} with verified hours, storage types, and facility details for ${escapeHtml(place)}.</p>
+        ${renderMapDirections(project, place)}
         ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(project.existingContent.accessHours)}</p>` : ""}
         ${project.existingContent.officeHours ? `<p><strong>Office Hours:</strong> ${escapeHtml(project.existingContent.officeHours)}</p>` : ""}
         ${phone ? `<a href="${escapeHtml(telHref)}" class="cta-button">Call ${escapeHtml(phone)}</a>` : `<a href="${safeUrl(project.locationIdentity.storagelyPageUrl || "#")}" class="cta-button">View Units</a>`}
