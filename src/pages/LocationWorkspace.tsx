@@ -6,6 +6,7 @@ import CompletionProgress from "../components/CompletionProgress";
 import DraftGeneratorPanel from "../components/DraftGeneratorPanel";
 import ExistingContentParser from "../components/ExistingContentParser";
 import ExportPanel from "../components/ExportPanel";
+import CityStateInput from "../components/CityStateInput";
 import { ListTextarea, TextArea, TextInput } from "../components/FormControls";
 import GoogleMapsEmbedInput from "../components/GoogleMapsEmbedInput";
 import HtmlPreview from "../components/HtmlPreview";
@@ -80,6 +81,28 @@ export default function LocationWorkspace() {
     });
   };
 
+  const updateCityState = (city: string, state: string) => {
+    save((current) => {
+      const previousDefault = buildPrimaryKeyword(
+        current.locationIdentity.city,
+        current.locationIdentity.state,
+        settings.defaultKeywordPattern,
+      );
+      const nextIdentity = { ...current.locationIdentity, city, state };
+      const nextDefault = buildPrimaryKeyword(city, state, settings.defaultKeywordPattern);
+      const shouldAutoKeyword = !current.seo.primaryKeyword || current.seo.primaryKeyword === previousDefault;
+
+      return {
+        ...current,
+        locationIdentity: nextIdentity,
+        seo: {
+          ...current.seo,
+          primaryKeyword: normalizePrimaryKeyword(shouldAutoKeyword ? nextDefault : current.seo.primaryKeyword),
+        },
+      };
+    });
+  };
+
   const renderTab = () => {
     if (activeTab === "Brief") {
       return (
@@ -89,21 +112,42 @@ export default function LocationWorkspace() {
           <section className="storiq-card storiq-card--padding">
             <div className="storiq-card-header flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="storiq-section-title">Location Brief</h2>
-                <p className="storiq-section-subtitle">Identity, SEO metadata, and project workflow status.</p>
+                <h2 className="storiq-section-title">Location Brief (NAP)</h2>
+                <p className="storiq-section-subtitle">Name, address, phone, market, and SEO metadata.</p>
               </div>
               <StatusBadge status={project.status} />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <TextInput label="City" value={project.locationIdentity.city} onChange={(value) => updateIdentity("city", value)} required />
-              <TextInput label="State" value={project.locationIdentity.state} onChange={(value) => updateIdentity("state", value)} required />
-              <TextInput label="ZIP code" value={project.locationIdentity.zipCode} onChange={(value) => updateIdentity("zipCode", value)} required />
+              <div className="md:col-span-2">
+                <TextInput
+                  label="Facility name"
+                  value={project.locationIdentity.facilityName}
+                  onChange={(value) => updateIdentity("facilityName", value)}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <TextInput
+                  label="Address"
+                  value={project.existingContent.address}
+                  onChange={(address) => save((current) => ({ ...current, existingContent: { ...current.existingContent, address } }))}
+                  required
+                />
+              </div>
               <TextInput
-                label="Facility name"
-                value={project.locationIdentity.facilityName}
-                onChange={(value) => updateIdentity("facilityName", value)}
+                label="Phone"
+                value={project.existingContent.phone}
+                onChange={(phone) => save((current) => ({ ...current, existingContent: { ...current.existingContent, phone } }))}
                 required
               />
+              <CityStateInput
+                city={project.locationIdentity.city}
+                state={project.locationIdentity.state}
+                onChange={updateCityState}
+                required
+                helpText="Enter as City, State — e.g. Orange, TX"
+              />
+              <TextInput label="ZIP code" value={project.locationIdentity.zipCode} onChange={(value) => updateIdentity("zipCode", value)} required />
               <div className="md:col-span-2">
                 <TextInput
                   label="Storagely page URL"
@@ -165,6 +209,8 @@ export default function LocationWorkspace() {
             <ExistingContentParser
               content={project.existingContent}
               onChange={(existingContent) => save((current) => ({ ...current, existingContent }))}
+              showNapFields={false}
+              showStorageTypes={false}
             />
           </section>
           <section className="storiq-card storiq-card--padding">

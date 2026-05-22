@@ -124,7 +124,8 @@ export const prepareProject = (
   const draftTitleTag = generateDraftTitleTag(project);
   const draftMetaDescription = generateDraftMetaDescription(project);
   const draftSections = generateDraftSections(project, facilities, images);
-  const draftFaqs = generateDraftFaqs(project, images);
+  const draftFaqs =
+    project.generated.draftFaqs.length > 0 ? project.generated.draftFaqs : generateDraftFaqs(project, images);
   const withDraft = {
     ...project,
     generated: {

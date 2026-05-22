@@ -1,34 +1,36 @@
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CityStateInput from "../components/CityStateInput";
 import CompletionProgress from "../components/CompletionProgress";
 import ExistingContentParser from "../components/ExistingContentParser";
+import FaqEditor from "../components/FaqEditor";
 import { ListTextarea, TextInput } from "../components/FormControls";
 import GoogleMapsEmbedInput from "../components/GoogleMapsEmbedInput";
 import NearbyLocationSelector from "../components/NearbyLocationSelector";
 import RequiredFieldBadge from "../components/RequiredFieldBadge";
 import StorageTypeSelector from "../components/StorageTypeSelector";
 import WizardStep from "../components/WizardStep";
+import { generateDraftFaqs } from "../lib/draftGenerator";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
-import {
-  enhanceProjectFromLibraries,
-  matchNearbyIdsFromContent,
-  matchStorageImageIds,
-} from "../lib/projectEnhancements";
+import { enhanceProjectFromLibraries, matchNearbyIdsFromContent } from "../lib/projectEnhancements";
 import { buildPrimaryKeyword, createLocationProject } from "../lib/projectDefaults";
 import { getProjectValidation } from "../lib/validators";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject } from "../types/storiq";
 
 const stepLabels = [
-  "Location Identity",
-  "Existing Content",
-  "Google Maps",
+  "NAP",
+  "Existing Location Content",
   "Storage Types",
-  "Local Context",
+  "Local Content",
   "Nearby Locations",
+  "FAQs",
+  "Google Map",
   "Review",
 ];
+
+const STEP_COUNT = stepLabels.length;
 
 export default function LocationWizard() {
   const { addProject, facilities, images, settings } = useProjects();
@@ -63,26 +65,96 @@ export default function LocationWizard() {
     });
   };
 
+  const updateCityState = (city: string, state: string) => {
+    updateProject((current) => {
+      const previousDefault = buildPrimaryKeyword(
+        current.locationIdentity.city,
+        current.locationIdentity.state,
+        settings.defaultKeywordPattern,
+      );
+      const nextIdentity = { ...current.locationIdentity, city, state };
+      const nextDefault = buildPrimaryKeyword(city, state, settings.defaultKeywordPattern);
+      const shouldAutoKeyword = !current.seo.primaryKeyword || current.seo.primaryKeyword === previousDefault;
+
+      return {
+        ...current,
+        locationIdentity: nextIdentity,
+        seo: {
+          ...current.seo,
+          primaryKeyword: normalizePrimaryKeyword(shouldAutoKeyword ? nextDefault : current.seo.primaryKeyword),
+        },
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (step === 5 && project.generated.draftFaqs.length === 0) {
+      setProject((current) => ({
+        ...current,
+        generated: {
+          ...current.generated,
+          draftFaqs: generateDraftFaqs(current, images),
+        },
+      }));
+    }
+  }, [step, images, project.generated.draftFaqs.length]);
+
   const saveDraft = () => {
-    const saved = addProject(enhanceProjectFromLibraries(project, facilities, images));
+    const withFaqs =
+      project.generated.draftFaqs.length > 0
+        ? project
+        : {
+            ...project,
+            generated: {
+              ...project.generated,
+              draftFaqs: generateDraftFaqs(project, images),
+            },
+          };
+    const saved = addProject(enhanceProjectFromLibraries(withFaqs, facilities, images));
     navigate(`/locations/${saved.id}`);
   };
 
   const renderStep = () => {
     if (step === 0) {
       return (
-        <WizardStep title="Step 1: Location Identity" description="Capture the core page identity and auto-generate the main keyword.">
+        <WizardStep
+          title="Step 1: NAP"
+          description="Name, address, and phone for this facility, plus market and Storagely page details."
+        >
           <div className="grid gap-4 md:grid-cols-2">
-            <TextInput label="City" value={project.locationIdentity.city} onChange={(value) => updateIdentity("city", value)} required />
-            <TextInput label="State" value={project.locationIdentity.state} onChange={(value) => updateIdentity("state", value)} required />
-            <TextInput label="ZIP code" value={project.locationIdentity.zipCode} onChange={(value) => updateIdentity("zipCode", value)} required />
+            <div className="md:col-span-2">
+              <TextInput
+                label="Facility name"
+                value={project.locationIdentity.facilityName}
+                onChange={(value) => updateIdentity("facilityName", value)}
+                required
+                placeholder="My Garage Self Storage | I-35"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <TextInput
+                label="Address"
+                value={project.existingContent.address}
+                onChange={(address) => setProject((current) => ({ ...current, existingContent: { ...current.existingContent, address } }))}
+                required
+              />
+            </div>
             <TextInput
-              label="Facility name"
-              value={project.locationIdentity.facilityName}
-              onChange={(value) => updateIdentity("facilityName", value)}
+              label="Phone"
+              value={project.existingContent.phone}
+              onChange={(phone) => setProject((current) => ({ ...current, existingContent: { ...current.existingContent, phone } }))}
               required
-              placeholder="My Garage Self Storage | I-35"
+              placeholder="+1 555 123 4567"
+              helpText="International numbers with a leading + are supported."
             />
+            <CityStateInput
+              city={project.locationIdentity.city}
+              state={project.locationIdentity.state}
+              onChange={updateCityState}
+              required
+              helpText="Enter as City, State — e.g. Orange, TX"
+            />
+            <TextInput label="ZIP code" value={project.locationIdentity.zipCode} onChange={(value) => updateIdentity("zipCode", value)} required />
             <div className="md:col-span-2">
               <TextInput
                 label="Storagely page URL"
@@ -113,19 +185,26 @@ export default function LocationWizard() {
 
     if (step === 1) {
       return (
-        <WizardStep title="Step 2: Existing Location Content" description="Paste the brief, then extract phone, address, hours, storage types, and Features & Amenities from Facility Features / Unit Rental Grid.">
+        <WizardStep
+          title="Step 2: Existing Location Content"
+          description="Paste the brief, then extract hours and Features & Amenities. Choose storage type cards in Step 3."
+        >
           <ExistingContentParser
             content={project.existingContent}
             onChange={(existingContent) => setProject((current) => ({ ...current, existingContent }))}
+            showNapFields={false}
+            showStorageTypes={false}
             onExtracted={(existingContent) => {
               setProject((current) => {
                 const nearbyIds = matchNearbyIdsFromContent(existingContent.rawContent, facilities, current);
-                const storageIds = matchStorageImageIds(existingContent.storageTypes, images);
                 return {
                   ...current,
-                  existingContent,
+                  existingContent: {
+                    ...existingContent,
+                    address: existingContent.address || current.existingContent.address,
+                    phone: existingContent.phone || current.existingContent.phone,
+                  },
                   selectedNearbyLocations: nearbyIds.length > 0 ? nearbyIds : current.selectedNearbyLocations,
-                  selectedStorageImages: storageIds.length > 0 ? storageIds : current.selectedStorageImages,
                 };
               });
             }}
@@ -136,15 +215,7 @@ export default function LocationWizard() {
 
     if (step === 2) {
       return (
-        <WizardStep title="Step 3: Google Maps" description="Preview the embedded map while you work. It fills from your Step 2 address, or paste an official Google embed to override.">
-          <GoogleMapsEmbedInput project={project} onChange={(googleMaps) => setProject((current) => ({ ...current, googleMaps }))} />
-        </WizardStep>
-      );
-    }
-
-    if (step === 3) {
-      return (
-        <WizardStep title="Step 4: Storage Type Images" description="Demo images from the master library — replace with Storagely Media Library URLs before client launch.">
+        <WizardStep title="Step 3: Storage Types" description="Select storage type image cards from the master library for this location page.">
           <StorageTypeSelector
             selectedIds={project.selectedStorageImages}
             onChange={(selectedStorageImages) => setProject((current) => ({ ...current, selectedStorageImages }))}
@@ -153,12 +224,12 @@ export default function LocationWizard() {
       );
     }
 
-    if (step === 4) {
+    if (step === 3) {
       return (
-        <WizardStep title="Step 5: Local Context" description="Add local references without claiming distance verification is complete.">
+        <WizardStep title="Step 4: Local Content" description="Add local references without claiming distance verification is complete.">
           <div className="storiq-alert storiq-alert-warning mb-5">
-            All Section 4 local landmarks must be within 10 miles / 16 km of the facility. For this MVP, these checks are marked as
-            Needs manual verification.
+            All local landmarks must be within 10 miles / 16 km of the facility. For this MVP, these checks are marked as needs manual
+            verification.
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <ListTextarea
@@ -186,9 +257,9 @@ export default function LocationWizard() {
       );
     }
 
-    if (step === 5) {
+    if (step === 4) {
       return (
-        <WizardStep title="Step 6: Nearby Locations" description="Search the facility library, select exactly 3 nearby locations, and prevent self-linking.">
+        <WizardStep title="Step 5: Nearby Locations" description="Search the facility library, select exactly 3 nearby locations, and prevent self-linking.">
           <NearbyLocationSelector
             project={project}
             facilities={facilities}
@@ -199,8 +270,40 @@ export default function LocationWizard() {
       );
     }
 
+    if (step === 5) {
+      const faqs =
+        project.generated.draftFaqs.length > 0 ? project.generated.draftFaqs : generateDraftFaqs(project, images);
+
+      return (
+        <WizardStep title="Step 6: FAQs" description="Review and edit FAQ questions and answers. Visible copy must match FAQPage JSON-LD on export.">
+          <FaqEditor
+            project={project}
+            images={images}
+            faqs={faqs}
+            onChange={(draftFaqs) =>
+              setProject((current) => ({
+                ...current,
+                generated: { ...current.generated, draftFaqs },
+              }))
+            }
+          />
+        </WizardStep>
+      );
+    }
+
+    if (step === 6) {
+      return (
+        <WizardStep
+          title="Step 7: Google Map"
+          description="Preview the embedded map while you work. It fills from your NAP address, or paste an official Google embed to override."
+        >
+          <GoogleMapsEmbedInput project={project} onChange={(googleMaps) => setProject((current) => ({ ...current, googleMaps }))} />
+        </WizardStep>
+      );
+    }
+
     return (
-      <WizardStep title="Step 7: Review" description="Review hard fails, warnings, and save the draft into the workspace.">
+      <WizardStep title="Step 8: Review" description="Review hard fails, warnings, and save the draft into the workspace.">
         <div className="storiq-stack">
           <CompletionProgress project={project} />
           <div className="grid gap-4 lg:grid-cols-2">
@@ -282,8 +385,8 @@ export default function LocationWizard() {
             <Save className="h-4 w-4" aria-hidden="true" />
             Save Draft
           </button>
-          {step < stepLabels.length - 1 ? (
-            <button type="button" onClick={() => setStep((current) => Math.min(stepLabels.length - 1, current + 1))} className="storiq-btn storiq-btn-primary">
+          {step < STEP_COUNT - 1 ? (
+            <button type="button" onClick={() => setStep((current) => Math.min(STEP_COUNT - 1, current + 1))} className="storiq-btn storiq-btn-primary">
               Next
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
