@@ -1,4 +1,5 @@
 import { storageTypeImage } from "./mediaPaths";
+import { STORAGE_DESTINATION_BY_ID } from "./storageDestinationUrls";
 import type { StorageImage } from "../types/storiq";
 
 /** Default storage-type library using images in `public/media-library/storage-types/`. */
@@ -7,7 +8,7 @@ export const starterImages: StorageImage[] = [
     id: "vehicle-storage",
     category: "Vehicle Storage",
     imageUrl: storageTypeImage("vehicle_storage.png"),
-    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/vehicle-storage/",
+    destinationUrl: STORAGE_DESTINATION_BY_ID["vehicle-storage"],
     altText: "Vehicle storage",
     type: "storage_type",
   },
@@ -15,7 +16,7 @@ export const starterImages: StorageImage[] = [
     id: "boat-storage",
     category: "Boat Storage",
     imageUrl: storageTypeImage("boat_storage.png"),
-    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/boat-storage/",
+    destinationUrl: STORAGE_DESTINATION_BY_ID["boat-storage"],
     altText: "Boat storage",
     type: "storage_type",
   },
@@ -23,7 +24,7 @@ export const starterImages: StorageImage[] = [
     id: "rv-storage",
     category: "RV Storage",
     imageUrl: storageTypeImage("rv_storage.png"),
-    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/rv-storage/",
+    destinationUrl: STORAGE_DESTINATION_BY_ID["rv-storage"],
     altText: "RV storage",
     type: "storage_type",
   },
@@ -31,7 +32,7 @@ export const starterImages: StorageImage[] = [
     id: "truck-storage",
     category: "Truck Storage",
     imageUrl: storageTypeImage("truck_storage.png"),
-    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/truck-storage/",
+    destinationUrl: STORAGE_DESTINATION_BY_ID["truck-storage"],
     altText: "Truck storage",
     type: "storage_type",
   },
@@ -39,7 +40,7 @@ export const starterImages: StorageImage[] = [
     id: "business-storage",
     category: "Business Storage",
     imageUrl: storageTypeImage("business_storage.png"),
-    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/business-storage/",
+    destinationUrl: STORAGE_DESTINATION_BY_ID["business-storage"],
     altText: "Business storage",
     type: "storage_type",
   },
@@ -47,7 +48,7 @@ export const starterImages: StorageImage[] = [
     id: "climate-controlled-storage",
     category: "Climate-Controlled Storage",
     imageUrl: storageTypeImage("climate_controlled_storage.png"),
-    destinationUrl: "https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/",
+    destinationUrl: STORAGE_DESTINATION_BY_ID["climate-controlled-storage"],
     altText: "Climate-controlled storage",
     type: "storage_type",
   },

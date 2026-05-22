@@ -17,6 +17,7 @@ import { starterImages } from "../lib/defaultImages";
 import {
   defaultImages,
   mergeImages,
+  migrateImageLibrary,
   normalizeImage,
   parseImagesCsv,
   parseImagesMarkdown,
@@ -158,17 +159,19 @@ const syncFacilitiesWithLocalImages = (stored: NearbyFacility[]): NearbyFacility
 };
 
 const syncImagesWithLocalLibrary = (stored: StorageImage[]): StorageImage[] => {
-  if (!stored.some((image) => usesLegacyRemoteImage(image.imageUrl))) {
-    return stored;
+  let synced = migrateImageLibrary(stored);
+
+  if (!synced.some((image) => usesLegacyRemoteImage(image.imageUrl))) {
+    return synced;
   }
   const starterById = new Map(starterImages.map((image) => [image.id, image]));
-  const synced = stored.map((image) => {
+  synced = synced.map((image) => {
     const starter = starterById.get(image.id);
     return starter ? { ...image, imageUrl: starter.imageUrl, altText: image.altText || starter.altText } : image;
   });
   const knownIds = new Set(synced.map((image) => image.id));
   const missing = starterImages.filter((image) => !knownIds.has(image.id));
-  return [...synced, ...missing];
+  return migrateImageLibrary([...synced, ...missing]);
 };
 
 const loadFacilities = (): NearbyFacility[] => {

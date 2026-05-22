@@ -5,6 +5,8 @@ import { generateDraftTitleTag } from "./draftGenerator";
 import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
+import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
+import { formatValueBullet } from "./valuePropositionCopy";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
 import { cityState, escapeHtml, externalLinkAttrs, formatTelHref, safeUrl, slugify } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -59,11 +61,12 @@ const renderValueList = (project: LocationProject): string => {
 
   return bullets
     .map((bullet) => {
-      const colonIndex = bullet.indexOf(":");
+      const formatted = formatValueBullet(bullet, project);
+      const colonIndex = formatted.indexOf(":");
       if (colonIndex > 0) {
-        return `<li><strong>${escapeHtml(bullet.slice(0, colonIndex + 1))}</strong> ${escapeHtml(bullet.slice(colonIndex + 1).trim())}</li>`;
+        return `<li><strong>${escapeHtml(formatted.slice(0, colonIndex + 1))}</strong> ${escapeHtml(formatted.slice(colonIndex + 1).trim())}</li>`;
       }
-      return `<li><strong>${escapeHtml(bullet)}:</strong> A practical benefit for customers comparing storage options in ${escapeHtml(cityState(project) || "the local area")}.</li>`;
+      return `<li>${escapeHtml(formatted)}</li>`;
     })
     .join("\n");
 };
@@ -86,9 +89,10 @@ const renderStorageCard = (
 ): string => {
   const alt = buildStorageImageAlt(image, project);
   const description = storageCardDescription(image, project, images);
+  const destinationUrl = resolveStorageDestinationUrl(image);
   const heading =
-    image.destinationUrl && isLinkableStorageType(image.category)
-      ? `<h3><a href="${safeUrl(image.destinationUrl)}" class="storage-card__heading-link"${externalLinkAttrs(image.destinationUrl)}>${escapeHtml(image.category)}</a></h3>`
+    destinationUrl && isLinkableStorageType(image.category)
+      ? `<h3><a href="${safeUrl(destinationUrl)}" class="storage-card__heading-link"${externalLinkAttrs(destinationUrl)}>${escapeHtml(image.category)}</a></h3>`
       : `<h3>${escapeHtml(image.category)}</h3>`;
   const imageSrc = publishMediaUrl(image.imageUrl, publishAssetBaseUrl);
   const imageMarkup = imageSrc

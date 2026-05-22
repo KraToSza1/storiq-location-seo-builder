@@ -1,5 +1,6 @@
 import { createId } from "./projectDefaults";
 import { starterImages } from "./defaultImages";
+import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
 import type { ImageImportResult, StorageImage, StorageImageType } from "../types/storiq";
 import { parseCsvRows } from "./facilityLibrary";
 
@@ -48,10 +49,38 @@ export const normalizeImage = (image: Partial<StorageImage>): StorageImage | und
     id: image.id?.trim() || slug(category) || createId(),
     category,
     imageUrl,
-    destinationUrl: image.destinationUrl?.trim() || undefined,
+    destinationUrl: resolveStorageDestinationUrl({
+      id: image.id?.trim() || slug(category) || createId(),
+      category,
+      destinationUrl: image.destinationUrl,
+    }),
     altText: image.altText?.trim() || category,
     type,
   };
+};
+
+/** Fix legacy `/storage-types/` destination URLs in saved Master Data. */
+export const migrateImageLibrary = (images: StorageImage[]): StorageImage[] => {
+  const starterById = new Map(starterImages.map((image) => [image.id, image]));
+
+  return images.map((image) => {
+    const destinationUrl = resolveStorageDestinationUrl(image);
+    const starter = starterById.get(image.id);
+    const next = {
+      ...image,
+      destinationUrl,
+      imageUrl: image.imageUrl?.trim() || starter?.imageUrl || image.imageUrl,
+    };
+
+    if (
+      next.destinationUrl === image.destinationUrl &&
+      next.imageUrl === image.imageUrl
+    ) {
+      return image;
+    }
+
+    return next;
+  });
 };
 
 export const parseImagesCsv = (csv: string): { images: StorageImage[]; result: ImageImportResult } => {
@@ -135,15 +164,15 @@ export const imageWarnings = (images: StorageImage[]): string[] => {
 };
 
 export const imageCsvTemplate = `id,category,imageUrl,destinationUrl,altText,type
-vehicle-storage,Vehicle Storage,/media-library/storage-types/vehicle_storage.png,https://www.mygarageselfstorage.com/storage-types/vehicle-storage/,Vehicle storage,storage_type
-climate-controlled-storage,Climate-Controlled Storage,/media-library/storage-types/climate_controlled_storage.png,https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/,Climate-controlled storage,storage_type`;
+vehicle-storage,Vehicle Storage,/media-library/storage-types/vehicle_storage.png,https://www.mygarageselfstorage.com/vehicle-storage,Vehicle storage,storage_type
+climate-controlled-storage,Climate-Controlled Storage,/media-library/storage-types/climate_controlled_storage.png,https://www.mygarageselfstorage.com/climate-controlled-storage,Climate-controlled storage,storage_type`;
 
 export const imageMarkdownTemplate = `# Storagely Media Library (import template)
 
 | image number | image name | image URL | destination | ALT tag |
 | --- | --- | --- | --- | --- |
-| 1 | Vehicle Storage | /media-library/storage-types/vehicle_storage.png | https://www.mygarageselfstorage.com/storage-types/vehicle-storage/ | Vehicle storage |
-| 2 | Climate-Controlled Storage | /media-library/storage-types/climate_controlled_storage.png | https://www.mygarageselfstorage.com/storage-types/climate-controlled-storage/ | Climate-controlled storage |
+| 1 | Vehicle Storage | /media-library/storage-types/vehicle_storage.png | https://www.mygarageselfstorage.com/vehicle-storage | Vehicle storage |
+| 2 | Climate-Controlled Storage | /media-library/storage-types/climate_controlled_storage.png | https://www.mygarageselfstorage.com/climate-controlled-storage | Climate-controlled storage |
 `;
 
 const parseMarkdownTable = (markdown: string): StorageImage[] => {

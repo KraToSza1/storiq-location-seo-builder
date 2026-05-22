@@ -1,4 +1,5 @@
 import { getStorageImageById } from "./imageLibrary";
+import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const cityState = (project: LocationProject): string =>
@@ -24,19 +25,15 @@ const selectedStorageTypes = (project: LocationProject, images: StorageImage[]):
 const buildValueBullets = (project: LocationProject): string[] => {
   const unique = [...new Set(project.existingContent.features.filter(Boolean))];
 
-  while (unique.length < 5 && project.existingContent.features.length > 0) {
-    const next = project.existingContent.features.find((f) => !unique.includes(f));
-    if (!next) break;
-    unique.push(next);
+  if (unique.length === 0) {
+    return [
+      formatValueBullet("Convenient Location", project),
+      formatValueBullet("Secure Gated Access", project),
+      formatValueBullet("Flexible Month-to-Month Rentals", project),
+    ];
   }
 
-  if (unique.length < 5) {
-    unique.push("Convenient access for local residents and businesses");
-    unique.push("Helpful on-site team for move-in questions");
-    unique.push("Practical unit options for household and vehicle storage");
-  }
-
-  return unique.slice(0, 8);
+  return unique.slice(0, 8).map((feature) => formatValueBullet(feature, project));
 };
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
