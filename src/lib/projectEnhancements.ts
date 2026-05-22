@@ -36,12 +36,12 @@ export const matchNearbyIdsFromContent = (
     .filter((f): f is NearbyFacility => Boolean(f))
     .map((f) => f.id);
 
-  const unique = [...new Set(matched)].slice(0, 3);
+  const unique = [...new Set(matched)].slice(0, 6);
   if (unique.length >= 3) return unique;
 
   const suggested = suggestNearbyFacilityIds(project, facilities);
   suggested.forEach((id) => {
-    if (!unique.includes(id) && unique.length < 3) unique.push(id);
+    if (!unique.includes(id) && unique.length < 6) unique.push(id);
   });
 
   return unique;

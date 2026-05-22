@@ -2,6 +2,7 @@ import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validat
 import { renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 import { getStorageImageById } from "./imageLibrary";
+import { isNearbySelectionCountValid, NEARBY_SELECTION_MAX, NEARBY_SELECTION_MIN } from "./nearbySuggestions";
 
 const makeCheck = (id: string, label: string, status: ExportCheck["status"], message: string): ExportCheck => ({
   id,
@@ -47,14 +48,15 @@ export const runExportChecks = (
     .map((id) => facilities.find((f) => f.id === id))
     .filter((f): f is NearbyFacility => Boolean(f));
 
+  const nearbyCount = project.selectedNearbyLocations.length;
   checks.push(
     makeCheck(
       "nearby-count",
-      "Exactly 3 nearby locations selected",
-      project.selectedNearbyLocations.length === 3 ? "pass" : "fail",
-      project.selectedNearbyLocations.length === 3
-        ? "Three nearby facilities selected."
-        : `Selected ${project.selectedNearbyLocations.length} — exactly 3 required for export.`,
+      `${NEARBY_SELECTION_MIN}–${NEARBY_SELECTION_MAX} nearby locations selected`,
+      isNearbySelectionCountValid(nearbyCount) ? "pass" : "fail",
+      isNearbySelectionCountValid(nearbyCount)
+        ? `${nearbyCount} nearby facilities selected.`
+        : `Selected ${nearbyCount} — choose between ${NEARBY_SELECTION_MIN} and ${NEARBY_SELECTION_MAX} for export.`,
     ),
   );
 

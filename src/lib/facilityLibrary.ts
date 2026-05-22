@@ -1,5 +1,10 @@
 import { createId } from "./projectDefaults";
-import { resolveNearbyLocationImageUrl, upgradeFacilityImageUrl } from "./nearbyLocationImages";
+import {
+  catalogFacilitiesFromNearbyImages,
+  isWrongNearbyCardImage,
+  resolveNearbyLocationImageUrl,
+  upgradeFacilityImageUrl,
+} from "./nearbyLocationImages";
 import { sampleFacilities } from "./sampleFacilities";
 import type { FacilityImportResult, NearbyFacility } from "../types/storiq";
 
@@ -133,6 +138,56 @@ export const normalizeFacility = (facility: Partial<NearbyFacility> & { url?: st
 
 export const upgradeFacilitiesImageUrls = (facilities: NearbyFacility[]): NearbyFacility[] =>
   facilities.map(upgradeFacilityImageUrl);
+
+const LEGACY_SAMPLE_IDS = new Set(["mgs-salado-main", "mgs-georgetown-north", "mgs-waco-south"]);
+
+/** Fix old browser data: storage-type thumbnails and deprecated sample facility rows. */
+export const migrateFacilityLibrary = (stored: NearbyFacility[]): NearbyFacility[] => {
+  let list = upgradeFacilitiesImageUrls(stored);
+
+  list = list.map((facility) => {
+    if (!isWrongNearbyCardImage(facility.imageUrl)) {
+      return facility;
+    }
+    const resolved = resolveNearbyLocationImageUrl(facility);
+    return { ...facility, imageUrl: resolved };
+  });
+
+  const hasLegacyRows = list.some((f) => LEGACY_SAMPLE_IDS.has(f.id));
+  const hasWrongImages = stored.some((f) => isWrongNearbyCardImage(f.imageUrl));
+
+  if (hasLegacyRows || hasWrongImages) {
+    const byUrl = new Map(list.map((f) => [f.storagelyUrl.trim().toLowerCase(), f]));
+    sampleFacilities.forEach((sample) => {
+      const key = sample.storagelyUrl.trim().toLowerCase();
+      const existing = byUrl.get(key);
+      if (existing) {
+        byUrl.set(key, { ...existing, imageUrl: sample.imageUrl ?? existing.imageUrl });
+      } else if (!LEGACY_SAMPLE_IDS.has(sample.id) || !hasLegacyRows) {
+        byUrl.set(key, sample);
+      }
+    });
+    list = [...byUrl.values()];
+  }
+
+  if (hasLegacyRows) {
+    list = list.filter((f) => !LEGACY_SAMPLE_IDS.has(f.id));
+    const knownUrls = new Set(list.map((f) => f.storagelyUrl.trim().toLowerCase()));
+    sampleFacilities.forEach((sample) => {
+      const key = sample.storagelyUrl.trim().toLowerCase();
+      if (!knownUrls.has(key)) {
+        list.push(sample);
+        knownUrls.add(key);
+      }
+    });
+  }
+
+  list = mergeFacilities(list, catalogFacilitiesFromNearbyImages());
+
+  return list.sort((a, b) =>
+    `${a.state}${a.city}${a.facilityName}`.localeCompare(`${b.state}${b.city}${b.facilityName}`),
+  );
+};
 
 export const parseFacilitiesCsv = (csv: string): { facilities: NearbyFacility[]; result: FacilityImportResult } => {
   const rows = parseCsvRows(csv);

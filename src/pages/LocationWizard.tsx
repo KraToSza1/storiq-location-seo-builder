@@ -259,7 +259,7 @@ export default function LocationWizard() {
 
     if (step === 4) {
       return (
-        <WizardStep title="Step 5: Nearby Locations" description="Search the facility library, select exactly 3 nearby locations, and prevent self-linking.">
+        <WizardStep title="Step 5: Nearby Locations" description="Pick 3–6 nearby locations with correct photos from the full library. Use search and scroll to see every eligible facility.">
           <NearbyLocationSelector
             project={project}
             facilities={facilities}

@@ -8,9 +8,9 @@ import {
 import {
   defaultFacilities,
   mergeFacilities,
+  migrateFacilityLibrary,
   normalizeFacility,
   parseFacilitiesCsv,
-  upgradeFacilitiesImageUrls,
   upsertFacility,
 } from "../lib/facilityLibrary";
 import { starterImages } from "../lib/defaultImages";
@@ -183,7 +183,7 @@ const syncFacilitiesWithLocalImages = (stored: NearbyFacility[]): NearbyFacility
       })
     : stored;
 
-  return upgradeFacilitiesImageUrls(withStarters);
+  return migrateFacilityLibrary(withStarters);
 };
 
 const syncImagesWithLocalLibrary = (stored: StorageImage[]): StorageImage[] => {

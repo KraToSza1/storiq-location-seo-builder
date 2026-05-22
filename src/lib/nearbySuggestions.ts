@@ -1,7 +1,9 @@
-import { resolveNearbyLocationImageUrl } from "./nearbyLocationImages";
+import { isEligibleNearbyCatalogFacility, isNearbyLocationCardImage, isWrongNearbyCardImage } from "./nearbyLocationImages";
 import type { LocationProject, NearbyFacility } from "../types/storiq";
 
-const NEARBY_LIMIT = 3;
+/** Storagely grid supports 3–6 nearby cards; picker shows every eligible library row. */
+export const NEARBY_SELECTION_MIN = 3;
+export const NEARBY_SELECTION_MAX = 6;
 
 const isSelfFacility = (project: LocationProject, facility: NearbyFacility): boolean => {
   const pageUrl = project.locationIdentity.storagelyPageUrl.trim().toLowerCase();
@@ -20,29 +22,47 @@ const scoreFacility = (project: LocationProject, facility: NearbyFacility): numb
   const facilityCity = facility.city.trim().toLowerCase();
 
   if (isSelfFacility(project, facility)) return -1000;
+  if (!isEligibleNearbyCatalogFacility(facility)) return -500;
   if (!facility.storagelyUrl.trim()) score -= 50;
-  if (!facility.imageUrl?.trim()) score -= 10;
-  else if (!facility.imageUrl.includes("/storage-types/")) score += 5;
 
   if (state && facilityState === state) score += 40;
   if (city && facilityCity && facilityCity !== city) score += 15;
   if (city && facilityCity === city) score -= 5;
 
-  if (resolveNearbyLocationImageUrl(facility)) score += 8;
+  if (isNearbyLocationCardImage(facility.imageUrl)) score += 25;
 
   return score;
 };
 
+export const filterEligibleNearbyFacilities = (facilities: NearbyFacility[]): NearbyFacility[] =>
+  facilities.filter((f) => isEligibleNearbyCatalogFacility(f));
+
 export const rankNearbyFacilities = (project: LocationProject, facilities: NearbyFacility[]): NearbyFacility[] =>
-  [...facilities]
+  filterEligibleNearbyFacilities(facilities)
     .filter((f) => !isSelfFacility(project, f))
     .sort((a, b) => scoreFacility(project, b) - scoreFacility(project, a));
 
-export const suggestNearbyFacilityIds = (project: LocationProject, facilities: NearbyFacility[]): string[] =>
-  rankNearbyFacilities(project, facilities)
-    .slice(0, NEARBY_LIMIT)
-    .map((f) => f.id);
+export const suggestNearbyFacilityIds = (project: LocationProject, facilities: NearbyFacility[]): string[] => {
+  const ranked = rankNearbyFacilities(project, facilities);
+  const withNearbyImages = ranked.filter((f) => isNearbyLocationCardImage(f.imageUrl));
+  const pool = withNearbyImages.length > 0 ? withNearbyImages : ranked.filter((f) => !isWrongNearbyCardImage(f.imageUrl));
+  const fallback = pool.length > 0 ? pool : ranked;
 
-export const canSelectMoreNearby = (selectedIds: string[]): boolean => selectedIds.length < NEARBY_LIMIT;
+  return fallback.slice(0, NEARBY_SELECTION_MAX).map((f) => f.id);
+};
 
-export const NEARBY_SELECTION_LIMIT = NEARBY_LIMIT;
+export const suggestNearbyFacilityNames = (project: LocationProject, facilities: NearbyFacility[]): string[] => {
+  const ids = suggestNearbyFacilityIds(project, facilities);
+  return ids
+    .map((id) => facilities.find((f) => f.id === id))
+    .filter((f): f is NearbyFacility => Boolean(f))
+    .map((f) => `${f.city}, ${f.state}`);
+};
+
+export const canSelectMoreNearby = (selectedIds: string[]): boolean => selectedIds.length < NEARBY_SELECTION_MAX;
+
+export const isNearbySelectionCountValid = (count: number): boolean =>
+  count >= NEARBY_SELECTION_MIN && count <= NEARBY_SELECTION_MAX;
+
+/** @deprecated Use NEARBY_SELECTION_MAX */
+export const NEARBY_SELECTION_LIMIT = NEARBY_SELECTION_MAX;

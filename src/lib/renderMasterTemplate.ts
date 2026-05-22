@@ -258,7 +258,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
         `Looking for self storage outside of ${city}? My Garage Self Storage has multiple convenient locations across the region.`,
     )}</p>
     <div class="locations-grid">
-      ${nearbyCards || "<p>Select exactly 3 nearby facilities in Step 6 before exporting.</p>"}
+      ${nearbyCards || "<p>Select 3–6 nearby facilities in Step 5 before exporting.</p>"}
     </div>
   </section>
 

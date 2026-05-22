@@ -104,12 +104,14 @@ export const getProjectValidation = (
   if (project.localContext.doNotInclude.length === 0) {
     warnings.push(warningIssue("doNotInclude", "Do-not-include notes", "No do-not-include notes have been added."));
   }
-  if (project.selectedStorageImages.length > 6) {
-    warnings.push(warningIssue("tooManyStorageTypes", "Storage cards", "More than 6 storage type cards are selected."));
-  }
-  if (project.selectedNearbyLocations.length !== 3) {
+  const nearbyCount = project.selectedNearbyLocations.length;
+  if (nearbyCount < 3) {
     warnings.push(
-      warningIssue("nearbyCount", "Nearby locations", "Select exactly 3 nearby facilities for the page section."),
+      warningIssue("nearbyCount", "Nearby locations", "Select at least 3 nearby facilities for the page section."),
+    );
+  } else if (nearbyCount > 6) {
+    warnings.push(
+      warningIssue("nearbyCount", "Nearby locations", "More than 6 nearby facilities selected — Storagely grid supports up to 6."),
     );
   }
   if (!project.generated.faqJsonLd.trim()) {

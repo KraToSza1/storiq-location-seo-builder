@@ -1,3 +1,4 @@
+import { isNearbySelectionCountValid } from "./nearbySuggestions";
 import { getProjectValidation, hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
 import { runExportChecks } from "./exportChecks";
 import type { LaunchReadiness, LaunchReadinessItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -62,7 +63,9 @@ export const getLaunchReadiness = (
   if (landmarkWarning) warnings.push("Landmark distance not verified — manual review required");
   if (nearbyMissingImage > 0) warnings.push(`${nearbyMissingImage} nearby location(s) missing image`);
   if (nearbyMissingUrl > 0) warnings.push(`${nearbyMissingUrl} nearby location(s) missing URL`);
-  if (project.selectedNearbyLocations.length !== 3) warnings.push("Nearby locations should be exactly 3");
+  if (!isNearbySelectionCountValid(project.selectedNearbyLocations.length)) {
+    warnings.push("Nearby locations should be between 3 and 6");
+  }
   if (map.isValid && (!map.hasLazyLoading || !map.hasTitle || !map.hasReferrerPolicy)) {
     warnings.push("Map iframe missing lazy loading, title, or referrerpolicy");
   }
@@ -77,8 +80,9 @@ export const getLaunchReadiness = (
         ? 70
         : 30;
   const mapScore = map.isValid && map.hasLazyLoading && map.hasTitle && map.hasReferrerPolicy ? 100 : map.isValid ? 65 : 15;
+  const nearbyCount = project.selectedNearbyLocations.length;
   const nearbyScore =
-    project.selectedNearbyLocations.length === 3 && nearbyMissingUrl === 0 ? 100 : project.selectedNearbyLocations.length > 0 ? 50 : 20;
+    isNearbySelectionCountValid(nearbyCount) && nearbyMissingUrl === 0 ? 100 : nearbyCount > 0 ? 50 : 20;
   const schemaScore = schemaFail ? 25 : 100;
   const exportScore = project.generated.html && !exportFail ? 100 : project.generated.html ? 55 : 25;
 
@@ -122,12 +126,12 @@ export const getLaunchReadiness = (
     item(
       "nearby",
       "Nearby Locations",
-      project.selectedNearbyLocations.length !== 3 || nearbyMissingUrl > 0 ? "fail" : "pass",
+      !isNearbySelectionCountValid(project.selectedNearbyLocations.length) || nearbyMissingUrl > 0 ? "fail" : "pass",
       nearbyScore,
-      project.selectedNearbyLocations.length === 3
-        ? "Exactly 3 nearby facilities selected."
-        : `Selected ${project.selectedNearbyLocations.length} — need exactly 3.`,
-      "Pick 3 facilities from Master Data.",
+      isNearbySelectionCountValid(project.selectedNearbyLocations.length)
+        ? `${project.selectedNearbyLocations.length} nearby facilities selected (3–6).`
+        : `Selected ${project.selectedNearbyLocations.length} — need 3–6.`,
+      "Pick 3–6 eligible facilities from Master Data.",
     ),
     item(
       "schema",

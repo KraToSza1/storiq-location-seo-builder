@@ -836,6 +836,27 @@ a.storiq-btn.storiq-btn-primary:focus-visible {
   padding-right: 0.25rem;
 }
 
+/* Nearby location picker — scrollable grid (wizard step 5) */
+.storiq-nearby-facilities-scroll {
+  max-height: min(28rem, 48vh);
+  min-height: 14rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding-right: 0.35rem;
+  border: 1px solid var(--storiq-border);
+  border-radius: var(--storiq-radius-lg);
+  background: var(--storiq-surface-inset);
+  padding: 0.75rem;
+}
+
+.storiq-nearby-facilities-scroll:focus-visible {
+  outline: 2px solid var(--storiq-accent);
+  outline-offset: 2px;
+}
+
 .storiq-map-preview-wrap {
   width: 100%;
 }

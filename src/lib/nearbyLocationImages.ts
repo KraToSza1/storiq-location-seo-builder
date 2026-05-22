@@ -93,10 +93,48 @@ export const upgradeFacilityImageUrl = (facility: NearbyFacility): NearbyFacilit
 
   if (shouldAutoAssignNearbyImage(imageUrl)) {
     const resolved = resolveNearbyLocationImageUrl(facility);
-    if (resolved) {
-      imageUrl = resolved;
-    }
+    imageUrl = resolved;
+  }
+
+  if (imageUrl?.includes("/storage-types/")) {
+    imageUrl = resolveNearbyLocationImageUrl(facility);
   }
 
   return imageUrl === facility.imageUrl ? facility : { ...facility, imageUrl };
 };
+
+export const isNearbyLocationCardImage = (url?: string): boolean =>
+  Boolean(url?.trim() && url.includes("/nearby-locations/"));
+
+export const isWrongNearbyCardImage = (url?: string): boolean =>
+  Boolean(url?.includes("/storage-types/"));
+
+const slugToDisplayCity = (slug: string): string =>
+  slug
+    .split("-")
+    .map((part) => (part.length <= 2 ? part.toUpperCase() : `${part.charAt(0).toUpperCase()}${part.slice(1)}`))
+    .join(" ");
+
+/** One catalog row per file in `nearby-locations/` so the picker is not capped at sample size. */
+export const buildCatalogFacilityFromNearbyFilename = (filename: string): NearbyFacility => {
+  const locSlug = locationSlugFromFilename(filename);
+  const city = slugToDisplayCity(locSlug);
+
+  return {
+    id: `nearby-catalog-${locSlug}`,
+    facilityName: `My Garage Self Storage | ${city}`,
+    city,
+    state: "TX",
+    address: `${city}, TX`,
+    zipCode: "",
+    storagelyUrl: `https://www.mygarageselfstorage.com/self-storage/tx/${locSlug}/`,
+    imageUrl: nearbyLocationImage(filename),
+    notes: "Listed from nearby-locations image library",
+  };
+};
+
+export const catalogFacilitiesFromNearbyImages = (): NearbyFacility[] =>
+  NEARBY_LOCATION_FILENAMES.map(buildCatalogFacilityFromNearbyFilename);
+
+export const isEligibleNearbyCatalogFacility = (facility: NearbyFacility): boolean =>
+  Boolean(facility.storagelyUrl?.trim() && isNearbyLocationCardImage(facility.imageUrl) && !isWrongNearbyCardImage(facility.imageUrl));
