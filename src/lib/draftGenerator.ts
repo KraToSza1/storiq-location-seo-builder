@@ -42,6 +42,60 @@ const buildValueBullets = (project: LocationProject): string[] => {
   return unique.slice(0, 8).map((feature) => formatValueBullet(feature, project));
 };
 
+const countWords = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length;
+
+const buildLocalDraftBody = (
+  project: LocationProject,
+  facilityName: string,
+  place: string,
+  localRefs: string[],
+): string => {
+  const keyword = project.seo.primaryKeyword || `self storage units in ${place}`;
+  const address = project.existingContent.address?.trim();
+  const paragraphs: string[] = [
+    `${facilityName} is proud to serve the ${place} community with ${keyword} for households, businesses, and vehicle owners. Whether you are downsizing, renovating, or simply need extra space, our team understands the storage needs that come with life in ${place}.`,
+  ];
+
+  if (localRefs.length > 0) {
+    paragraphs.push(
+      `Convenient for customers near ${sentenceList(localRefs.slice(0, 3), place)}, our facility makes it easy to store belongings close to home or work. Many ${place} residents rely on us for seasonal gear, moving supplies, and overflow from garages and closets throughout the year.`,
+    );
+    if (localRefs.length > 3) {
+      paragraphs.push(
+        `We also welcome customers from ${sentenceList(localRefs.slice(3, 6), "surrounding areas")}, giving more neighbors access to secure, flexible storage when they need it.`,
+      );
+    }
+  } else {
+    paragraphs.push(
+      `Convenient for customers across ${place} and surrounding communities, we help local families and businesses stay organized with flexible month-to-month rentals and practical amenities designed for everyday storage needs.`,
+    );
+  }
+
+  paragraphs.push(
+    `From weekend projects and home cleanouts to business inventory and vehicle storage, ${facilityName} helps you keep ${place} living and working spaces clear without long-term commitments.`,
+  );
+  paragraphs.push(
+    address
+      ? `${facilityName} offers a straightforward rental experience with the features ${place} customers expect. Stop by ${address} to compare unit sizes, or reserve online when you are ready to move in.`
+      : `${facilityName} offers a straightforward rental experience with the features ${place} customers expect. Contact the facility to compare unit sizes and check current availability.`,
+  );
+
+  let body = paragraphs.join("\n\n");
+  if (countWords(body) < 150) {
+    body = `${body}\n\nProudly serving ${place} and nearby communities, we make it simple to find dependable storage close to where you live and work.`;
+  }
+
+  return body;
+};
+
+const buildMapDraftBody = (project: LocationProject, facilityName: string, place: string): string => {
+  const address = project.existingContent.address?.trim() || place;
+  const officeHours = project.existingContent.officeHours?.trim() || "contact the facility for current office hours";
+  const accessHours = project.existingContent.accessHours?.trim() || "contact the facility for gate and access hours";
+
+  return `${facilityName} is located at ${address} in ${place}. Office hours: ${officeHours}. Access hours: ${accessHours}. Use the map for directions, then contact the facility or reserve online when you are ready to move in.`;
+};
+
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
   const { city, state } = project.locationIdentity;
   const place = cityState(project);
@@ -98,7 +152,6 @@ export const generateDraftSections = (
   const valueBullets = buildValueBullets(project);
   const storageTypes = selectedStorageTypes(project, images);
   const localRefs = mergeLocalReferences(project.localContext);
-  const localRefsText = sentenceList(localRefs, "nearby neighborhoods, landmarks, and highways");
   const nearby = selectedFacilities(project, facilities);
   const nearbyText = sentenceList(
     nearby.map((facility) => `${facility.facilityName} in ${facility.city}`),
@@ -108,55 +161,63 @@ export const generateDraftSections = (
   const storageDescriptions = storageTypes.map(
     (type) => `${type} at ${facilityName} can help customers in ${place} store belongings with a layout suited to that storage category.`,
   );
+  const typesText = storageTypes.length > 0 ? sentenceList(storageTypes, "flexible storage options") : "flexible storage options";
+  const keyword = project.seo.primaryKeyword || `self storage units in ${place}`;
 
   return [
     {
       id: "intro",
       label: "Section 1",
       heading: headings.features,
-      body: `Introduce facility amenities from the location's Facility Features list (${featureText}). Weave confirmed features naturally across the page where they fit the flow of text.`,
+      body: `${facilityName} offers ${keyword} with ${featureText}. Our ${place} location combines practical amenities with a team that knows the community, helping you find the right unit for household, business, or vehicle storage needs.`,
       bullets: project.existingContent.features.slice(0, 8),
     },
     {
       id: "value",
       label: "Section 2",
       heading: headings.value,
-      body: `${VALUE_PROPOSITION_OPENING} we make it easy to find dependable self storage near ${place}. Follow with 5–8 bullets using the format "**Feature:** Description sentence."`,
+      body: `${VALUE_PROPOSITION_OPENING} we make it easy to find dependable self storage near ${place}. Our flexible rental options, gated access, and modern storage features help you store your belongings without long-term commitments or unnecessary hassle.`,
       bullets: valueBullets,
     },
     {
       id: "storage",
       label: "Section 3",
       heading: headings.storage,
-      body: `Storage type cards include an image, H3 heading, and a short description with local tie-ins and featured amenities. Link headings only when a destination URL exists in Master Data.`,
+      body:
+        storageTypes.length > 0
+          ? `${facilityName} in ${place} offers ${typesText} to match different storage needs. Compare unit sizes, features, and access options to find the layout that works best for your belongings.`
+          : `${facilityName} serves ${place} with flexible storage options for household, business, and vehicle storage.`,
       bullets: storageDescriptions.length > 0 ? storageDescriptions : storageTypes,
     },
     {
       id: "local",
       label: "Section 4",
       heading: headings.local,
-      body: `Write 150–250 words connecting ${facilityName} to ${place}. Mention ${localRefsText}, lifestyle tie-ins, and adjacent communities. Include geo-semantic keywords naturally. Do not claim landmarks are within 10 miles unless manually verified.`,
+      body: buildLocalDraftBody(project, facilityName, place, localRefs),
       bullets: localRefs.slice(0, 6),
     },
     {
       id: "nearby",
       label: "Section 5",
       heading: headings.nearby,
-      body: `Intro paragraph on nearby cities My Garage serves, then 3 cards with image, H3, description, and CTA "View [location] Storage": ${nearbyText}. Cards must not link back to the current facility.`,
+      body:
+        nearby.length > 0
+          ? `Looking for self storage outside of ${city}? My Garage Self Storage® has multiple convenient locations across the region, including options near ${nearbyText}. Explore our nearby facilities below to find the right fit for your community.`
+          : `Looking for self storage outside of ${city}? My Garage Self Storage® has multiple convenient locations across the region.`,
       bullets: nearby.map((facility) => `${facility.facilityName} — ${facility.city}, ${facility.state}`),
     },
     {
       id: "faqs",
       label: "Section 6",
       heading: headings.faq,
-      body: `Six FAQs optimized for local SEO. Each question or answer must include "${localKeyword}". Visible FAQ copy must match FAQPage JSON-LD exactly.`,
+      body: `${facilityName} answers frequent questions about ${localKeyword}, including unit types, amenities, hours, and directions for customers in ${place}.`,
       bullets: generateDraftFaqs(project, images).map((faq) => faq.question),
     },
     {
       id: "map-cta",
       label: "Section 7",
       heading: headings.map,
-      body: `Two-column layout: Google Map embed (left) and heading plus directions text (right). Include landmark/highway directions, access hours, and a CTA to the Storagely page for ${facilityName}.`,
+      body: buildMapDraftBody(project, facilityName, place),
       bullets: [project.existingContent.address, project.existingContent.phone, project.locationIdentity.storagelyPageUrl].filter(
         Boolean,
       ),
