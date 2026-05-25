@@ -5,6 +5,7 @@ import {
 } from "./facilityWireframe";
 import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
+import { isEditorInstruction } from "./templateDraftUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -94,6 +95,46 @@ const buildMapDraftBody = (project: LocationProject, facilityName: string, place
   const accessHours = project.existingContent.accessHours?.trim() || "contact the facility for gate and access hours";
 
   return `${facilityName} is located at ${address} in ${place}. Office hours: ${officeHours}. Access hours: ${accessHours}. Use the map for directions, then contact the facility or reserve online when you are ready to move in.`;
+};
+
+export const buildLocalSectionDraftBody = (project: LocationProject): string => {
+  const place = cityState(project);
+  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
+  const localRefs = mergeLocalReferences(project.localContext);
+  return buildLocalDraftBody(project, facilityName, place, localRefs);
+};
+
+export const buildMapSectionDraftBody = (project: LocationProject): string => {
+  const place = cityState(project);
+  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
+  return buildMapDraftBody(project, facilityName, place);
+};
+
+export const isStaleDraftSection = (section: DraftSection): boolean =>
+  isEditorInstruction(section.body) || section.bullets.some((bullet) => isEditorInstruction(bullet));
+
+/** Replace saved prompt/instruction text with generated wireframe copy. Keeps real user edits. */
+export const sanitizeDraftSections = (
+  project: LocationProject,
+  sections: DraftSection[],
+  facilities: NearbyFacility[],
+  images: StorageImage[],
+): DraftSection[] => {
+  const fresh = generateDraftSections(project, facilities, images);
+  if (sections.length === 0 || sections.length !== fresh.length) {
+    return fresh;
+  }
+
+  return sections.map((section) => {
+    const replacement = fresh.find((item) => item.id === section.id);
+    if (!replacement) {
+      return section;
+    }
+    if (isStaleDraftSection(section)) {
+      return replacement;
+    }
+    return { ...section, heading: replacement.heading, label: replacement.label };
+  });
 };
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {

@@ -1,11 +1,10 @@
 import { DEFAULT_PUBLISH_ASSET_BASE, toAbsoluteMediaUrl } from "./assetUrls";
 import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById, isLinkableStorageType } from "./imageLibrary";
-import { generateDraftTitleTag } from "./draftGenerator";
+import { buildLocalSectionDraftBody, buildMapSectionDraftBody, generateDraftTitleTag } from "./draftGenerator";
 import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
 import { resolveCanonicalStoragelyUrl } from "./facilityRegistry";
 import { buildFacilityWireframeHeadings, ensureValuePropositionOpening, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
-import { mergeLocalReferences } from "./localContextUtils";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
@@ -141,55 +140,19 @@ const renderNearbyCard = (facility: NearbyFacility, project: LocationProject): s
 
 const renderLocalParagraphs = (project: LocationProject): string => {
   const localDraft = findDraftSection(project, "local");
-  const place = cityState(project) || "the local area";
-  const { localContext } = project;
-  const paragraphs: string[] = [];
+  const localBody = exportDraftBody(localDraft?.body, buildLocalSectionDraftBody(project));
 
-  if (localDraft?.body?.trim() && !isEditorInstruction(localDraft.body)) {
-    localDraft.body
-      .split(/\n{2,}/)
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .forEach((part) => paragraphs.push(`<p>${escapeHtml(part)}</p>`));
-  }
-
-  if (paragraphs.length === 0) {
-    paragraphs.push(
-      `<p>${escapeHtml(
-        `${project.locationIdentity.facilityName || "My Garage Self Storage"} is proud to serve the ${place} community. Whether you live nearby or run a local business, our facility offers self storage solutions tailored to the area.`,
-      )}</p>`,
-    );
-  }
-
-  const localRefs = mergeLocalReferences(localContext);
-
-  if (localRefs.length > 0 && paragraphs.length < 3) {
-    paragraphs.push(
-      `<p>Located near ${localRefs
-        .slice(0, 3)
-        .map((item) => `<strong>${escapeHtml(item)}</strong>`)
-        .join(", ")}, this facility supports customers across ${escapeHtml(place)}.</p>`,
-    );
-  }
-
-  if (localRefs.length > 3 && paragraphs.length < 3) {
-    paragraphs.push(`<p>${escapeHtml(localRefs[3])}</p>`);
-  }
-
-  if (paragraphs.length < 2) {
-    paragraphs.push(
-      `<p>Proudly serving ${escapeHtml(place)} and surrounding communities. Verify that all local references are within 10 miles / 16 km before publishing.</p>`,
-    );
-  }
-
-  return paragraphs.slice(0, 3).join("\n    ");
+  return localBody
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => `<p>${escapeHtml(part)}</p>`)
+    .join("\n    ");
 };
 
-const renderMapDirections = (project: LocationProject, place: string): string => {
+const renderMapDirections = (project: LocationProject): string => {
   const mapDraft = findDraftSection(project, "map-cta");
-  const fallback = `Located in ${place}, our self storage facility offers convenient access for residents and businesses across the area. Find verified hours, storage types, and facility details for ${place}.`;
-
-  const body = exportDraftBody(mapDraft?.body, fallback);
+  const body = exportDraftBody(mapDraft?.body, buildMapSectionDraftBody(project));
   return body
     .split(/\n{2,}/)
     .map((part) => part.trim())
@@ -343,7 +306,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
         <h2>${escapeHtml(headings.map)}</h2>
         <p><strong>${escapeHtml(facilityName)}®</strong><br>
         ${escapeHtml(project.existingContent.address || "Address required")}</p>
-        ${renderMapDirections(project, place)}
+        ${renderMapDirections(project)}
         ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(project.existingContent.accessHours)}</p>` : ""}
         ${project.existingContent.officeHours ? `<p><strong>Office Hours:</strong> ${escapeHtml(project.existingContent.officeHours)}</p>` : ""}
         ${phone ? `<a href="${escapeHtml(telHref)}" class="cta-button">Call ${escapeHtml(phone)}</a>` : project.locationIdentity.storagelyPageUrl?.trim() ? `<a href="${safeUrl(project.locationIdentity.storagelyPageUrl)}" class="cta-button"${externalLinkAttrs(project.locationIdentity.storagelyPageUrl)}>View Units</a>` : ""}

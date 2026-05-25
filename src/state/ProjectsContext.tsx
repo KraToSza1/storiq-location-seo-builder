@@ -4,6 +4,7 @@ import {
   generateDraftMetaDescription,
   generateDraftSections,
   generateDraftTitleTag,
+  sanitizeDraftSections,
 } from "../lib/draftGenerator";
 import {
   defaultFacilities,
@@ -98,10 +99,14 @@ export const prepareProject = (
   const draftTitleTag = incomingGenerated.draftTitleTag.trim() || generateDraftTitleTag(project);
   const draftMetaDescription =
     incomingGenerated.draftMetaDescription.trim() || generateDraftMetaDescription(project);
-  const draftSections =
+  const draftSections = sanitizeDraftSections(
+    project,
     incomingGenerated.draftSections.length > 0
       ? incomingGenerated.draftSections
-      : generateDraftSections(project, facilities, images);
+      : generateDraftSections(project, facilities, images),
+    facilities,
+    images,
+  );
   const draftFaqs =
     incomingGenerated.draftFaqs.length > 0 ? incomingGenerated.draftFaqs : generateDraftFaqs(project, images);
   const lastDraftedAt = incomingGenerated.lastDraftedAt.trim() || new Date().toISOString();
