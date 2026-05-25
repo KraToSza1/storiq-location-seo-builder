@@ -29,13 +29,21 @@ const tabs = [
   "Content Inputs",
   "Images",
   "Nearby Locations",
-  "Draft Copy",
+  "Content Output",
   "Launch Score",
   "SEO Audit",
   "HTML Preview",
   "Export",
 ] as const;
 type Tab = (typeof tabs)[number];
+
+const normalizeWorkspaceTab = (tab: string | null | undefined): Tab | null => {
+  if (!tab) {
+    return null;
+  }
+  const legacyTab = tab === "Draft Copy" ? "Content Output" : tab;
+  return (tabs as readonly string[]).includes(legacyTab) ? (legacyTab as Tab) : null;
+};
 
 const statuses: ProjectStatus[] = ["draft", "ready_for_generation", "generated", "needs_review", "approved"];
 
@@ -48,12 +56,9 @@ export default function LocationWorkspace() {
       return "Brief";
     }
     const session = loadDashboardSession();
-    if (
-      session.lastProjectId === id &&
-      session.lastWorkspaceTab &&
-      (tabs as readonly string[]).includes(session.lastWorkspaceTab)
-    ) {
-      return session.lastWorkspaceTab as Tab;
+    const restored = normalizeWorkspaceTab(session.lastProjectId === id ? session.lastWorkspaceTab : null);
+    if (restored) {
+      return restored;
     }
     return "Brief";
   });
@@ -65,17 +70,13 @@ export default function LocationWorkspace() {
     }
 
     const session = loadDashboardSession();
-    const restoredTab =
-      session.lastProjectId === id &&
-      session.lastWorkspaceTab &&
-      (tabs as readonly string[]).includes(session.lastWorkspaceTab)
-        ? (session.lastWorkspaceTab as Tab)
-        : "Brief";
+    const restoredTab = session.lastProjectId === id ? normalizeWorkspaceTab(session.lastWorkspaceTab) : null;
+    const tab = restoredTab ?? "Brief";
 
-    setActiveTab(restoredTab);
+    setActiveTab(tab);
     saveDashboardSession({
       lastProjectId: project.id,
-      lastWorkspaceTab: restoredTab,
+      lastWorkspaceTab: tab,
     });
   }, [id, project?.id]);
 
@@ -333,8 +334,8 @@ export default function LocationWorkspace() {
       return <AuditPanel project={project} />;
     }
 
-    if (activeTab === "Draft Copy") {
-      return <DraftGeneratorPanel project={project} onUpdate={(updater) => save(updater)} />;
+    if (activeTab === "Content Output") {
+      return <DraftGeneratorPanel project={project} />;
     }
 
     if (activeTab === "Launch Score") {

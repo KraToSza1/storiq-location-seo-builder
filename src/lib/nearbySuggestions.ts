@@ -1,10 +1,10 @@
+import { normalizeStoragelyUrl } from "./facilityRegistry";
 import {
   extractFacilityLocationSlug,
   extractProjectLocationSlug,
   facilityDistanceKm,
   hasProjectOrigin,
   isWithinNearbyProximity,
-  normalizeLocationKey,
   resolveProjectCoordinates,
 } from "./facilityProximity";
 import { isEligibleNearbyCatalogFacility, isNearbyLocationCardImage, isWrongNearbyCardImage } from "./nearbyLocationImages";
@@ -29,8 +29,8 @@ export interface NearbySelectionLimits {
 }
 
 export const isSelfNearbyFacility = (project: LocationProject, facility: NearbyFacility): boolean => {
-  const pageUrl = project.locationIdentity.storagelyPageUrl.trim().toLowerCase();
-  const facilityUrl = facility.storagelyUrl.trim().toLowerCase();
+  const pageUrl = normalizeStoragelyUrl(project.locationIdentity.storagelyPageUrl).toLowerCase();
+  const facilityUrl = normalizeStoragelyUrl(facility.storagelyUrl).toLowerCase();
   const name = project.locationIdentity.facilityName.trim().toLowerCase();
 
   if (pageUrl.length > 0 && facilityUrl.length > 0 && pageUrl === facilityUrl) return true;
@@ -39,10 +39,6 @@ export const isSelfNearbyFacility = (project: LocationProject, facility: NearbyF
   const projectSlug = extractProjectLocationSlug(project);
   const facilitySlug = extractFacilityLocationSlug(facility);
   if (projectSlug.length > 0 && facilitySlug.length > 0 && projectSlug === facilitySlug) return true;
-
-  const projectCity = normalizeLocationKey(project.locationIdentity.city);
-  const facilityCity = normalizeLocationKey(facility.city);
-  if (projectCity.length > 0 && projectCity === facilityCity) return true;
 
   return false;
 };

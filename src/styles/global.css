@@ -773,6 +773,140 @@ a.storiq-btn.storiq-btn-primary:focus-visible {
 .storiq-badge-needs-review { background: var(--storiq-warning-bg); border-color: var(--storiq-warning-border); color: var(--storiq-warning); }
 .storiq-badge-ready-launch { background: var(--storiq-success-bg); border-color: var(--storiq-success-border); color: var(--storiq-success); }
 
+/* ─── Export option cards & help dialog ─── */
+.storiq-export-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1rem;
+  border-radius: var(--storiq-radius-md);
+  border: 1px solid var(--storiq-border);
+  background: var(--storiq-surface-muted);
+}
+
+.storiq-export-option--disabled {
+  opacity: 0.72;
+}
+
+.storiq-export-option__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.storiq-export-option__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--storiq-fg);
+}
+
+.storiq-export-option__summary {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--storiq-fg-secondary);
+}
+
+.storiq-export-option__help {
+  display: inline-flex;
+  shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--storiq-radius-sm);
+  border: 1px solid var(--storiq-border);
+  background: var(--storiq-surface);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--storiq-accent);
+  white-space: nowrap;
+}
+
+.storiq-export-option__help:hover {
+  border-color: var(--storiq-accent);
+  background: var(--storiq-accent-muted);
+}
+
+.storiq-export-option__action .storiq-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.storiq-export-group-title {
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--storiq-fg-muted);
+}
+
+.storiq-export-group-title:first-child {
+  margin-top: 0;
+}
+
+.storiq-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: min(85vh, 36rem);
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--storiq-radius-lg);
+  background: transparent;
+  color: var(--storiq-fg);
+  overflow: auto;
+}
+
+.storiq-dialog:not([open]) {
+  display: none;
+}
+
+.storiq-dialog::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+.storiq-dialog__panel {
+  padding: 1.25rem;
+  border-radius: var(--storiq-radius-lg);
+  border: 1px solid var(--storiq-border);
+  background: var(--storiq-surface);
+  box-shadow: var(--storiq-shadow-lg);
+}
+
+.storiq-dialog__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--storiq-fg);
+}
+
+.storiq-dialog__body {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--storiq-fg-secondary);
+}
+
+.storiq-draft-card--updated {
+  animation: storiq-draft-flash 1.6s ease;
+  border-color: var(--storiq-success-border);
+  box-shadow: 0 0 0 1px var(--storiq-success-border);
+}
+
+@keyframes storiq-draft-flash {
+  0% {
+    background: var(--storiq-success-bg);
+  }
+  100% {
+    background: var(--storiq-surface-muted);
+  }
+}
+
 /* ─── Status tiles (audit / readiness) ─── */
 .storiq-tile {
   border-radius: var(--storiq-radius);

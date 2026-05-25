@@ -93,20 +93,26 @@ export const prepareProject = (
   settings: AppSettings = defaultSettings,
 ): LocationProject => {
   const publishAssetBaseUrl = resolvePublishAssetBaseUrl(settings);
-  const draftTitleTag = generateDraftTitleTag(project);
-  const draftMetaDescription = generateDraftMetaDescription(project);
-  const draftSections = generateDraftSections(project, facilities, images);
+  const incomingGenerated = project.generated;
+  const draftTitleTag = incomingGenerated.draftTitleTag.trim() || generateDraftTitleTag(project);
+  const draftMetaDescription =
+    incomingGenerated.draftMetaDescription.trim() || generateDraftMetaDescription(project);
+  const draftSections =
+    incomingGenerated.draftSections.length > 0
+      ? incomingGenerated.draftSections
+      : generateDraftSections(project, facilities, images);
   const draftFaqs =
-    project.generated.draftFaqs.length > 0 ? project.generated.draftFaqs : generateDraftFaqs(project, images);
+    incomingGenerated.draftFaqs.length > 0 ? incomingGenerated.draftFaqs : generateDraftFaqs(project, images);
+  const lastDraftedAt = incomingGenerated.lastDraftedAt.trim() || new Date().toISOString();
   const withDraft = {
     ...project,
     generated: {
-      ...project.generated,
+      ...incomingGenerated,
       draftTitleTag,
       draftMetaDescription,
       draftSections,
       draftFaqs,
-      lastDraftedAt: new Date().toISOString(),
+      lastDraftedAt,
     },
   };
   const html = renderStoragelyHtml(withDraft, facilities, images, publishAssetBaseUrl);

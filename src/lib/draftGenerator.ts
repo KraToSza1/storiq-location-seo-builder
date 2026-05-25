@@ -1,7 +1,7 @@
 import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
-import type { DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
+import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const cityState = (project: LocationProject): string =>
   [project.locationIdentity.city, project.locationIdentity.state].filter(Boolean).join(", ") || "the local area";
@@ -177,4 +177,86 @@ export const regenerateDraftSection = (
 ): DraftSection | undefined => {
   const sections = generateDraftSections(project, facilities, images);
   return sections.find((section) => section.id === sectionId);
+};
+
+export const cloneDraftSections = (sections: DraftSection[]): DraftSection[] =>
+  sections.map((section) => ({ ...section, bullets: [...section.bullets] }));
+
+export const cloneDraftFaqs = (faqs: FaqItem[]): FaqItem[] => faqs.map((faq) => ({ ...faq }));
+
+export const buildDraftBaseline = (generated: LocationProject["generated"]): DraftContentBaseline => ({
+  draftTitleTag: generated.draftTitleTag,
+  draftMetaDescription: generated.draftMetaDescription,
+  draftSections: cloneDraftSections(generated.draftSections),
+  draftFaqs: cloneDraftFaqs(generated.draftFaqs),
+});
+
+export const refreshAllDraftContent = (
+  project: LocationProject,
+  facilities: NearbyFacility[],
+  images: StorageImage[],
+): Pick<LocationProject["generated"], "draftTitleTag" | "draftMetaDescription" | "draftSections" | "draftFaqs" | "lastDraftedAt" | "draftBaseline"> => {
+  const draftTitleTag = generateDraftTitleTag(project);
+  const draftMetaDescription = generateDraftMetaDescription(project);
+  const draftSections = generateDraftSections(project, facilities, images);
+  const draftFaqs = generateDraftFaqs(project, images);
+  const lastDraftedAt = new Date().toISOString();
+  const draftBaseline: DraftContentBaseline = {
+    draftTitleTag,
+    draftMetaDescription,
+    draftSections: cloneDraftSections(draftSections),
+    draftFaqs: cloneDraftFaqs(draftFaqs),
+  };
+
+  return { draftTitleTag, draftMetaDescription, draftSections, draftFaqs, lastDraftedAt, draftBaseline };
+};
+
+export const refreshDraftSection = (
+  project: LocationProject,
+  sectionId: string,
+  facilities: NearbyFacility[],
+  images: StorageImage[],
+): DraftSection[] => {
+  const freshSections = generateDraftSections(project, facilities, images);
+  const section = freshSections.find((item) => item.id === sectionId);
+  if (!section) {
+    return project.generated.draftSections.length > 0 ? cloneDraftSections(project.generated.draftSections) : freshSections;
+  }
+
+  if (project.generated.draftSections.length === 0) {
+    return freshSections;
+  }
+
+  return project.generated.draftSections.map((item) => (item.id === sectionId ? { ...section, bullets: [...section.bullets] } : item));
+};
+
+export const restoreDraftSectionFromBaseline = (
+  project: LocationProject,
+  sectionId: string,
+): DraftSection[] | undefined => {
+  const baselineSection = project.generated.draftBaseline?.draftSections.find((section) => section.id === sectionId);
+  if (!baselineSection || project.generated.draftSections.length === 0) {
+    return undefined;
+  }
+
+  return project.generated.draftSections.map((section) =>
+    section.id === sectionId ? { ...baselineSection, bullets: [...baselineSection.bullets] } : section,
+  );
+};
+
+export const restoreAllDraftsFromBaseline = (
+  project: LocationProject,
+): Pick<LocationProject["generated"], "draftTitleTag" | "draftMetaDescription" | "draftSections" | "draftFaqs" | "lastDraftedAt"> | undefined => {
+  const baseline = project.generated.draftBaseline;
+  if (!baseline) {
+    return undefined;
+  }
+
+  return {
+    draftTitleTag: baseline.draftTitleTag,
+    draftMetaDescription: baseline.draftMetaDescription,
+    draftSections: cloneDraftSections(baseline.draftSections),
+    draftFaqs: cloneDraftFaqs(baseline.draftFaqs),
+    lastDraftedAt: new Date().toISOString(),
+  };
 };

@@ -1,3 +1,4 @@
+import { auditFacilityHeadings, FACILITY_WIREframe_SECTION_SIGNALS } from "./facilityWireframe";
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
 import { renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -83,22 +84,24 @@ export const runExportChecks = (
     ),
   );
 
-  const sections = [
-    "Features &amp; Amenities",
-    "Why Choose",
-    "Types of Self Storage",
-    "Serving",
-    "Other Nearby Locations at My Garage",
-    "FAQs about Self Storage",
-    "map-section",
-  ];
+  const sections = [...FACILITY_WIREframe_SECTION_SIGNALS];
   const missing = sections.filter((s) => !html.includes(s));
   checks.push(
     makeCheck(
       "seven-sections",
-      "7 expected sections",
+      "7 wireframe sections",
       missing.length === 0 ? "pass" : "fail",
-      missing.length === 0 ? "All 7 sections present." : `Missing: ${missing.join(", ")}.`,
+      missing.length === 0 ? "All 7 client wireframe sections present." : `Missing: ${missing.join(", ")}.`,
+    ),
+  );
+
+  const headingAudit = auditFacilityHeadings(html);
+  checks.push(
+    makeCheck(
+      "heading-hierarchy",
+      "H2/H3 wireframe headings",
+      headingAudit.valid ? "pass" : "fail",
+      headingAudit.message,
     ),
   );
 

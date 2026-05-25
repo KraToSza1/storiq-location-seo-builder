@@ -1,3 +1,4 @@
+import { findCanonicalFacility, NEARBY_IMAGE_TO_FACILITY_ID, toNearbyFacility } from "./facilityRegistry";
 import { nearbyLocationImage } from "./mediaPaths";
 import type { NearbyFacility } from "../types/storiq";
 
@@ -117,8 +118,16 @@ const slugToDisplayCity = (slug: string): string =>
 
 /** One catalog row per file in `nearby-locations/` so the picker is not capped at sample size. */
 export const buildCatalogFacilityFromNearbyFilename = (filename: string): NearbyFacility => {
+  const registryId = NEARBY_IMAGE_TO_FACILITY_ID[filename];
+  if (registryId) {
+    const canonical = findCanonicalFacility({ id: registryId });
+    if (canonical) {
+      return toNearbyFacility({ ...canonical, imageFilename: filename });
+    }
+  }
+
   const locSlug = locationSlugFromFilename(filename);
-  const city = slugToDisplayCity(locSlug);
+  const city = slugToDisplayCity(locSlug.split("-")[0] ?? locSlug);
 
   return {
     id: `nearby-catalog-${locSlug}`,
@@ -127,9 +136,9 @@ export const buildCatalogFacilityFromNearbyFilename = (filename: string): Nearby
     state: "TX",
     address: `${city}, TX`,
     zipCode: "",
-    storagelyUrl: `https://www.mygarageselfstorage.com/self-storage/tx/${locSlug}/`,
+    storagelyUrl: "",
     imageUrl: nearbyLocationImage(filename),
-    notes: "Listed from nearby-locations image library",
+    notes: "Listed from nearby-locations image library — add Storagely URL in Master Data",
   };
 };
 

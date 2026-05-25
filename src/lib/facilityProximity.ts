@@ -1,3 +1,4 @@
+import { extractStoragelyTexasPath } from "./facilityRegistry";
 import type { LocationProject, NearbyFacility } from "../types/storiq";
 
 export interface GeoPoint {
@@ -53,11 +54,10 @@ export const normalizeLocationKey = (value: string): string =>
     .replace(/^-|-$/g, "");
 
 export const extractFacilityLocationSlug = (facility: NearbyFacility): string => {
-  const url = facility.storagelyUrl.trim().toLowerCase();
-  const storageUnits = url.match(/\/storage-units\/texas\/([^/?#]+)/);
-  if (storageUnits) return storageUnits[1];
-  const legacy = url.match(/\/self-storage\/tx\/([^/?#]+)/);
-  if (legacy) return legacy[1];
+  const fromUrl = extractStoragelyTexasPath(facility.storagelyUrl);
+  if (fromUrl) {
+    return fromUrl;
+  }
   return normalizeLocationKey(facility.city);
 };
 
@@ -65,16 +65,18 @@ const lookupCoordinates = (key: string): GeoPoint | undefined => {
   if (!key) return undefined;
   if (LOCATION_COORDS[key]) return LOCATION_COORDS[key];
 
+  const cityKey = key.split("/")[0];
+  if (cityKey && LOCATION_COORDS[cityKey]) return LOCATION_COORDS[cityKey];
+
   const prefix = Object.keys(LOCATION_COORDS).find((candidate) => key.startsWith(candidate) || candidate.startsWith(key));
   return prefix ? LOCATION_COORDS[prefix] : undefined;
 };
 
 export const extractProjectLocationSlug = (project: LocationProject): string => {
-  const url = project.locationIdentity.storagelyPageUrl.trim().toLowerCase();
-  const storageUnits = url.match(/\/storage-units\/texas\/([^/?#]+)/);
-  if (storageUnits) return storageUnits[1];
-  const legacy = url.match(/\/self-storage\/tx\/([^/?#]+)/);
-  if (legacy) return legacy[1];
+  const fromUrl = extractStoragelyTexasPath(project.locationIdentity.storagelyPageUrl);
+  if (fromUrl) {
+    return fromUrl;
+  }
   return normalizeLocationKey(project.locationIdentity.city);
 };
 

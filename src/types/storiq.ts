@@ -54,6 +54,8 @@ export interface LocationProject {
     draftSections: DraftSection[];
     draftFaqs: FaqItem[];
     lastDraftedAt: string;
+    /** Snapshot from the last Generate / Refresh All — used by Reset. */
+    draftBaseline?: DraftContentBaseline;
   };
   audit: {
     score: number;
@@ -99,12 +101,24 @@ export interface AppSettings {
   mediaAssetBaseUrl: string;
 }
 
+export interface FaqItem {
+  question: string;
+  answer: string;
+}
+
 export interface DraftSection {
   id: string;
   label: string;
   heading: string;
   body: string;
   bullets: string[];
+}
+
+export interface DraftContentBaseline {
+  draftTitleTag: string;
+  draftMetaDescription: string;
+  draftSections: DraftSection[];
+  draftFaqs: FaqItem[];
 }
 
 export interface LaunchReadinessItem {
@@ -171,9 +185,4 @@ export interface ValidationIssue {
   label: string;
   message: string;
   severity: "required" | "warning";
-}
-
-export interface FaqItem {
-  question: string;
-  answer: string;
 }

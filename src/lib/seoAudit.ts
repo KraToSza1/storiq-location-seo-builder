@@ -3,6 +3,7 @@ import { resolvePublishAssetBaseUrl } from "./assetUrls";
 import { defaultSettings } from "./projectDefaults";
 import { renderFaqJsonLd, renderStoragelyHtml } from "./templateRenderer";
 import { defaultFacilities } from "./facilityLibrary";
+import { auditFacilityHeadings, FACILITY_WIREframe_SECTION_SIGNALS } from "./facilityWireframe";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import type { AuditStatus, LocationProject, NearbyFacility, SEOAuditCheck } from "../types/storiq";
@@ -85,69 +86,28 @@ export const runSEOAudit = (
     ),
   );
 
-  const expectedSectionSignals = [
-    "Features &amp; Amenities",
-    "Why Choose",
-    "Types of Self Storage",
-    "Serving",
-    "Other Nearby Locations at My Garage",
-    "FAQs about Self Storage",
-    "map-section",
-  ];
+  const expectedSectionSignals = [...FACILITY_WIREframe_SECTION_SIGNALS];
   const missingSections = expectedSectionSignals.filter((section) => !html.includes(section));
   checks.push(
     makeCheck(
       "seven-sections",
-      "7 page sections exist",
+      "7 wireframe sections exist",
       missingSections.length === 0 ? "pass" : "fail",
       missingSections.length === 0
-        ? "All 7 required page sections are present."
+        ? "All 7 client wireframe sections are present."
         : `Missing section signals: ${missingSections.join(", ")}.`,
       "Regenerate the deterministic HTML template.",
     ),
   );
 
-  const h2Count = countMatches(html, /<h2[\s>]/gi);
+  const headingAudit = auditFacilityHeadings(html);
   checks.push(
     makeCheck(
-      "h2-count",
-      "Page uses 7 H2 sections",
-      h2Count === 7 ? "pass" : "fail",
-      `Detected ${h2Count} H2 headings.`,
-      "The page template should render exactly 7 H2 headings.",
-    ),
-  );
-
-  const hasStorageH3 = project.selectedStorageImages.length > 0 && countMatches(html, /storage-card[\s\S]*?<h3/gi) > 0;
-  checks.push(
-    makeCheck(
-      "storage-h3",
-      "Storage cards use H3",
-      hasStorageH3 ? "pass" : "fail",
-      hasStorageH3 ? "Storage type cards use H3 headings." : "No H3 storage card headings were detected.",
-      "Select at least one storage type card.",
-    ),
-  );
-
-  const nearbyH3Count = countMatches(html, /location-card__content[\s\S]*?<h3/gi);
-  checks.push(
-    makeCheck(
-      "nearby-h3",
-      "Nearby cards use H3",
-      nearbyH3Count >= 1 ? "pass" : "fail",
-      `Detected ${nearbyH3Count} nearby H3 heading group(s).`,
-      "Select nearby facilities before export.",
-    ),
-  );
-
-  const faqH3Count = countMatches(html, /<summary><h3>/gi);
-  checks.push(
-    makeCheck(
-      "faq-h3",
-      "FAQ questions use H3 inside summary",
-      faqH3Count >= 1 ? "pass" : "fail",
-      `Detected ${faqH3Count} FAQ summary H3 heading(s).`,
-      "Regenerate the FAQ section.",
+      "heading-hierarchy",
+      "H2/H3 wireframe headings",
+      headingAudit.valid ? "pass" : "fail",
+      headingAudit.message,
+      headingAudit.valid ? undefined : "Complete storage cards, nearby locations, and 6 FAQs before export.",
     ),
   );
 

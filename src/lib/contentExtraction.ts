@@ -161,7 +161,8 @@ const normalizePhone = (raw?: string): string | undefined => {
   return raw.replace(/\s+/g, " ").trim();
 };
 
-const storagelyUrlRegex = /https?:\/\/(?:www\.)?mygarageselfstorage\.com\/self-storage\/[^\s"'<>]+/gi;
+const storagelyUrlRegex =
+  /https?:\/\/(?:www\.)?mygarageselfstorage\.com\/(?:self-storage|storage-units?)\/[^\s"'<>]+/gi;
 
 export const extractStoragelyUrlsFromContent = (rawContent: string): string[] => {
   const matches = rawContent.match(storagelyUrlRegex) ?? [];

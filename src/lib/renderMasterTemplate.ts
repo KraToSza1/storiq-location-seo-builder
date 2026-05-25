@@ -3,6 +3,8 @@ import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById, isLinkableStorageType } from "./imageLibrary";
 import { generateDraftTitleTag } from "./draftGenerator";
 import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
+import { resolveCanonicalStoragelyUrl } from "./facilityRegistry";
+import { buildFacilityWireframeHeadings, ensureValuePropositionOpening, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
 import { mergeLocalReferences } from "./localContextUtils";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
@@ -121,6 +123,7 @@ const renderNearbyCard = (facility: NearbyFacility, project: LocationProject): s
   const imageKey = nearbyLocationClass(facility);
   const imageClass = facility.imageUrl?.trim() ? `location-card__image--${imageKey}` : "";
   const imageAlt = `Self storage units in ${facility.city}, ${facility.state} near ${place}`;
+  const storagelyUrl = resolveCanonicalStoragelyUrl(facility);
 
   return `
       <article class="location-card">
@@ -131,7 +134,7 @@ const renderNearbyCard = (facility: NearbyFacility, project: LocationProject): s
             facility.notes?.trim() ||
               `Convenient self storage in ${facility.city}, ${facility.state}, with flexible month-to-month rentals and easy access for residents and businesses near ${place}.`,
           )}</p>
-          <a href="${safeUrl(facility.storagelyUrl)}" class="location-card__link"${externalLinkAttrs(facility.storagelyUrl)}>${escapeHtml(linkLabel)}</a>
+          <a href="${safeUrl(storagelyUrl)}" class="location-card__link"${externalLinkAttrs(storagelyUrl)}>${escapeHtml(linkLabel)}</a>
         </div>
       </article>`;
 };
@@ -234,14 +237,19 @@ export const renderStoragelyHtml = (
   const phone = project.existingContent.phone.trim();
   const telHref = formatTelHref(phone);
 
+  const headings = buildFacilityWireframeHeadings(city, state, place);
+
   const introBody = exportDraftBody(
     featuresDraft?.body,
     `Our ${city || "local"} self storage facility offers everything you need to store with confidence. From practical amenities to flexible access, every feature is designed to make your storage experience secure, convenient, and hassle-free.`,
   );
 
-  const valueBody = exportDraftBody(
-    valueDraft?.body,
-    `At My Garage Self Storage®, we make it easy to find dependable self storage near ${place}. Our flexible rental options, gated access, and modern storage features help you store your belongings without long-term commitments or unnecessary hassle.`,
+  const valueBody = ensureValuePropositionOpening(
+    exportDraftBody(
+      valueDraft?.body,
+      `${VALUE_PROPOSITION_OPENING} we make it easy to find dependable self storage near ${place}. Our flexible rental options, gated access, and modern storage features help you store your belongings without long-term commitments or unnecessary hassle.`,
+    ),
+    `${VALUE_PROPOSITION_OPENING} we make it easy to find dependable self storage near ${place}. Our flexible rental options, gated access, and modern storage features help you store your belongings without long-term commitments or unnecessary hassle.`,
   );
 
   const nearbyIntro = exportDraftBody(
@@ -272,7 +280,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
 
   <!-- SECTION 1: Facility Features & Amenities -->
   <section class="facility-section facility-section--white">
-    <h2>Features &amp; Amenities in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
+    <h2>${escapeHtml(headings.features)}</h2>
     <p>${escapeHtml(introBody)}</p>
     <ul class="facility-list">
       ${listMarkup(project.existingContent.features, "Add confirmed Features &amp; Amenities before publishing.")}
@@ -281,7 +289,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
 
   <!-- SECTION 2: Value Proposition -->
   <section class="facility-section facility-section--light">
-    <h2>Why Choose Our Self Storage Units in ${escapeHtml(city)}, ${escapeHtml(state)}?</h2>
+    <h2>${escapeHtml(headings.value)}</h2>
     <p>${escapeHtml(valueBody)}</p>
     <ul class="facility-list facility-list--single facility-features">
       ${renderValueList(project)}
@@ -290,7 +298,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
 
   <!-- SECTION 3: Types of Storage -->
   <section class="facility-section facility-section--white">
-    <h2>Types of Self Storage Units Available in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
+    <h2>${escapeHtml(headings.storage)}</h2>
     <div class="storage-grid">
       ${storageCards || "<p>Select storage type images in Step 3 before exporting.</p>"}
     </div>
@@ -298,22 +306,22 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
 
   <!-- SECTION 4: Local Content -->
   <section class="facility-section facility-section--light">
-    <h2>Serving ${escapeHtml(place)} and Surrounding Areas</h2>
+    <h2>${escapeHtml(headings.local)}</h2>
     ${renderLocalParagraphs(project)}
   </section>
 
   <!-- SECTION 5: Nearby Locations -->
   <section class="facility-section facility-section--white">
-    <h2>Other Nearby Locations at My Garage</h2>
+    <h2>${escapeHtml(headings.nearby)}</h2>
     <p>${escapeHtml(nearbyIntro)}</p>
     <div class="locations-grid">
-      ${nearbyCards || "<p>Select 3 nearby facilities in Step 5 before exporting.</p>"}
+      ${nearbyCards || "<p>Select 1–3 nearby facilities in Step 5 before exporting.</p>"}
     </div>
   </section>
 
   <!-- SECTION 6: FAQs -->
   <section class="facility-section facility-section--light">
-    <h2>FAQs about Self Storage in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
+    <h2>${escapeHtml(headings.faq)}</h2>
     ${faqItems
       .map(
         (item) => `
@@ -332,7 +340,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
         ${extractMapIframe(project.googleMaps.iframeCode)}
       </div>
       <div class="map-section__info">
-        <h2>Convenient Self Storage in ${escapeHtml(city)}, ${escapeHtml(state)}</h2>
+        <h2>${escapeHtml(headings.map)}</h2>
         <p><strong>${escapeHtml(facilityName)}®</strong><br>
         ${escapeHtml(project.existingContent.address || "Address required")}</p>
         ${renderMapDirections(project, place)}

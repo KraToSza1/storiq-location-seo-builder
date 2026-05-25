@@ -1,4 +1,5 @@
 import { createId } from "./projectDefaults";
+import { upgradeFacilitiesStoragelyUrls } from "./facilityRegistry";
 import {
   catalogFacilitiesFromNearbyImages,
   isWrongNearbyCardImage,
@@ -141,9 +142,10 @@ export const upgradeFacilitiesImageUrls = (facilities: NearbyFacility[]): Nearby
 
 const LEGACY_SAMPLE_IDS = new Set(["mgs-salado-main", "mgs-georgetown-north", "mgs-waco-south"]);
 
-/** Fix old browser data: storage-type thumbnails and deprecated sample facility rows. */
+/** Fix old browser data: storage-type thumbnails, deprecated sample rows, and legacy Storagely URLs. */
 export const migrateFacilityLibrary = (stored: NearbyFacility[]): NearbyFacility[] => {
-  let list = upgradeFacilitiesImageUrls(stored);
+  let list = upgradeFacilitiesStoragelyUrls(stored);
+  list = upgradeFacilitiesImageUrls(list);
 
   list = list.map((facility) => {
     if (!isWrongNearbyCardImage(facility.imageUrl)) {
@@ -300,4 +302,4 @@ export const facilityWarnings = (facilities: NearbyFacility[]): string[] => {
 };
 
 export const facilityCsvTemplate = `facilityName,city,state,address,zipCode,storagelyUrl,phone,imageUrl,notes
-My Garage Self Storage | I-35,Belton,TX,"1234 I-35 Frontage Rd, Belton, TX 76513",76513,https://www.mygarageselfstorage.com/self-storage/tx/belton/i-35/,254-555-0100,/media-library/nearby-locations/self-storage-units-in-belton.jpg,Starter row — replace with approved data`;
+My Garage Self Storage | I 35,Belton,TX,"1900 Interstate 35 Frontage Rd, Belton, TX 76513",76513,https://www.mygarageselfstorage.com/storage-units/texas/belton/i-35,,/media-library/nearby-locations/self-storage-units-in-belton.jpg,Approved Storagely URL format`;

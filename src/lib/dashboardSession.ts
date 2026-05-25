@@ -23,6 +23,13 @@ const normalizeQueueFilter = (value: unknown): ProjectQueueFilter =>
     ? (value as ProjectQueueFilter)
     : "all";
 
+const normalizeWorkspaceTab = (value: unknown): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  return value === "Draft Copy" ? "Content Output" : value;
+};
+
 export const loadDashboardSession = (): DashboardSession => {
   try {
     const raw = localStorage.getItem(DASHBOARD_SESSION_KEY);
@@ -34,7 +41,7 @@ export const loadDashboardSession = (): DashboardSession => {
     return {
       queueFilter: normalizeQueueFilter(stored.queueFilter),
       lastProjectId: typeof stored.lastProjectId === "string" ? stored.lastProjectId : null,
-      lastWorkspaceTab: typeof stored.lastWorkspaceTab === "string" ? stored.lastWorkspaceTab : null,
+      lastWorkspaceTab: normalizeWorkspaceTab(stored.lastWorkspaceTab),
       updatedAt: typeof stored.updatedAt === "string" ? stored.updatedAt : null,
     };
   } catch {
