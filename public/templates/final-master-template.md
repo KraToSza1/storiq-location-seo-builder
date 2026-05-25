@@ -511,7 +511,7 @@
       <div class="storage-card">
         <img
           class="storage-card__image"
-          src="https://cloud-1de12d.becdn.net/media/original/43c5cff2f285834c33a4fb8631dd9a41.png"
+          src="https://cloud-1de12d.becdn.net/media/original/efc180eff5bb83eecdc8200cc10bd3e6.png"
           alt="Drive-up self storage units in Copperas Cove, TX"
           width="400"
           height="320"

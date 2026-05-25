@@ -199,7 +199,7 @@ export const imageWarnings = (images: StorageImage[]): string[] => {
 
 export const imageCsvTemplate = `id,category,imageUrl,destinationUrl,altText,type
 vehicle-storage,Vehicle Storage,https://cloud-1de12d.becdn.net/media/original/eaf7976243a0b9d092650645480c34ca.png,https://www.mygarageselfstorage.com/vehicle-storage,vehicle storage,storage_type
-drive-up-storage,Drive-Up Storage,https://cloud-1de12d.becdn.net/media/original/43c5cff2f285834c33a4fb8631dd9a41.png,,drive up storage,storage_type
+drive-up-storage,Drive-Up Storage,https://cloud-1de12d.becdn.net/media/original/efc180eff5bb83eecdc8200cc10bd3e6.png,,drive up storage,storage_type
 container-storage,Container Storage,https://cloud-1de12d.becdn.net/media/original/ef42608a67e2df92d828edbaef349622.png,,container storage,storage_type
 warehouse-storage,Warehouse Storage,https://cloud-1de12d.becdn.net/media/original/4516ea8899596aec67c9401d635f323c.png,,warehouse storage,storage_type`;
 

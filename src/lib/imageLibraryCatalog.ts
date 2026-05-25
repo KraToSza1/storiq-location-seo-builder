@@ -113,7 +113,7 @@ export const IMAGE_LIBRARY_CATALOG: ImageLibraryCatalogEntry[] = [
     code: "IMG-007",
     id: "drive-up-storage",
     category: "Drive-Up Storage",
-    imageUrl: "https://cloud-1de12d.becdn.net/media/original/43c5cff2f285834c33a4fb8631dd9a41.png",
+    imageUrl: "https://cloud-1de12d.becdn.net/media/original/efc180eff5bb83eecdc8200cc10bd3e6.png",
     altText: "drive up storage",
     type: "storage_type",
   },
