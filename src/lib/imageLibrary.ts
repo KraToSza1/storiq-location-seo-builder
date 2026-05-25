@@ -1,4 +1,11 @@
 import { createId } from "./projectDefaults";
+import {
+  catalogByCode,
+  catalogById,
+  LEGACY_NON_CLIMATE_STORAGE_ID,
+  normalizeCatalogCategory,
+  resolveCatalogIdFromCode,
+} from "./imageLibraryCatalog";
 import { starterImages } from "./defaultImages";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
 import type { ImageImportResult, StorageImage, StorageImageType } from "../types/storiq";
@@ -59,29 +66,56 @@ export const normalizeImage = (image: Partial<StorageImage>): StorageImage | und
   };
 };
 
-/** Fix legacy `/storage-types/` destination URLs in saved Master Data. */
+/** Fix legacy `/storage-types/` destination URLs and sync approved client catalog rows. */
 export const migrateImageLibrary = (images: StorageImage[]): StorageImage[] => {
-  const starterById = new Map(starterImages.map((image) => [image.id, image]));
+  const starterById = catalogById();
 
-  return images.map((image) => {
-    const destinationUrl = resolveStorageDestinationUrl(image);
-    const starter = starterById.get(image.id);
-    const next = {
+  const upgraded = images.map((image) => {
+    const normalizedId = image.id === LEGACY_NON_CLIMATE_STORAGE_ID ? "drive-up-storage" : image.id;
+    const catalog = starterById.get(normalizedId);
+    const destinationUrl = resolveStorageDestinationUrl({
+      id: normalizedId,
+      category: catalog?.category ?? image.category,
+      destinationUrl: catalog?.destinationUrl ?? image.destinationUrl,
+    });
+
+    const next: StorageImage = {
       ...image,
+      id: normalizedId,
+      category: catalog?.category ?? image.category,
+      imageUrl: catalog?.imageUrl ?? image.imageUrl?.trim() ?? "",
       destinationUrl,
-      imageUrl: image.imageUrl?.trim() || starter?.imageUrl || image.imageUrl,
+      altText: catalog?.altText ?? image.altText,
+      type: catalog?.type ?? image.type,
     };
 
     if (
+      next.id === image.id &&
+      next.category === image.category &&
+      next.imageUrl === image.imageUrl &&
       next.destinationUrl === image.destinationUrl &&
-      next.imageUrl === image.imageUrl
+      next.altText === image.altText &&
+      next.type === image.type
     ) {
       return image;
     }
 
     return next;
   });
+
+  const byId = new Map<string, StorageImage>();
+  upgraded.forEach((image) => byId.set(image.id, image));
+  starterImages.forEach((starter) => {
+    if (!byId.has(starter.id)) {
+      byId.set(starter.id, starter);
+    }
+  });
+
+  return [...byId.values()].sort((a, b) => a.category.localeCompare(b.category));
 };
+
+export const migrateSelectedStorageImageIds = (selectedIds: string[]): string[] =>
+  selectedIds.map((id) => (id === LEGACY_NON_CLIMATE_STORAGE_ID ? "drive-up-storage" : id));
 
 export const parseImagesCsv = (csv: string): { images: StorageImage[]; result: ImageImportResult } => {
   const rows = parseCsvRows(csv);
@@ -164,8 +198,10 @@ export const imageWarnings = (images: StorageImage[]): string[] => {
 };
 
 export const imageCsvTemplate = `id,category,imageUrl,destinationUrl,altText,type
-vehicle-storage,Vehicle Storage,/media-library/storage-types/vehicle_storage.png,https://www.mygarageselfstorage.com/vehicle-storage,Vehicle storage,storage_type
-climate-controlled-storage,Climate-Controlled Storage,/media-library/storage-types/climate_controlled_storage.png,https://www.mygarageselfstorage.com/climate-controlled-storage,Climate-controlled storage,storage_type`;
+vehicle-storage,Vehicle Storage,https://cloud-1de12d.becdn.net/media/original/eaf7976243a0b9d092650645480c34ca.png,https://www.mygarageselfstorage.com/vehicle-storage,vehicle storage,storage_type
+drive-up-storage,Drive-Up Storage,https://cloud-1de12d.becdn.net/media/original/43c5cff2f285834c33a4fb8631dd9a41.png,,drive up storage,storage_type
+container-storage,Container Storage,https://cloud-1de12d.becdn.net/media/original/ef42608a67e2df92d828edbaef349622.png,,container storage,storage_type
+warehouse-storage,Warehouse Storage,https://cloud-1de12d.becdn.net/media/original/4516ea8899596aec67c9401d635f323c.png,,warehouse storage,storage_type`;
 
 export const imageMarkdownTemplate = `# Storagely Media Library (import template)
 
@@ -242,12 +278,57 @@ const parseMarkdownFieldBlocks = (markdown: string): StorageImage[] => {
   return images;
 };
 
-/** Parse Storagely CMS media-library markdown (table or numbered field blocks). */
+const parseMarkdownImgBlocks = (markdown: string): StorageImage[] => {
+  const blocks = markdown.split(/\n(?=##\s+IMG-\d+)/i).map((block) => block.trim()).filter(Boolean);
+  const byCode = catalogByCode();
+  const images: StorageImage[] = [];
+
+  blocks.forEach((block) => {
+    const codeMatch = block.match(/^##\s+(IMG-\d+)/i);
+    const code = codeMatch?.[1]?.toUpperCase();
+    if (!code) {
+      return;
+    }
+
+    const readField = (label: string): string | undefined => {
+      const pattern = new RegExp(`^-\\s*${label}\\s*:\\s*(.+)$`, "im");
+      return block.match(pattern)?.[1]?.trim();
+    };
+
+    const categoryRaw = readField("Category");
+    const imageUrl = readField("Image URL");
+    if (!categoryRaw || !imageUrl) {
+      return;
+    }
+
+    const destinationRaw = readField("Destination URL");
+    const catalog = byCode.get(code);
+    const id = resolveCatalogIdFromCode(code) ?? catalog?.id ?? slug(categoryRaw) ?? createId();
+
+    const image = normalizeImage({
+      id,
+      category: normalizeCatalogCategory(categoryRaw),
+      imageUrl,
+      destinationUrl: destinationRaw || catalog?.destinationUrl,
+      altText: readField("Alt Text") ?? catalog?.altText,
+      type: catalog?.type ?? "storage_type",
+    });
+
+    if (image) {
+      images.push(image);
+    }
+  });
+
+  return images;
+};
+
+/** Parse Storagely CMS media-library markdown (table, numbered blocks, or ## IMG-001 blocks). */
 export const parseImagesMarkdown = (markdown: string): { images: StorageImage[]; result: ImageImportResult } => {
   const fromTable = parseMarkdownTable(markdown);
   const fromBlocks = parseMarkdownFieldBlocks(markdown);
-  const images = mergeImages([], [...fromTable, ...fromBlocks]);
-  const skipped = Math.max(0, fromTable.length + fromBlocks.length - images.length);
+  const fromImgBlocks = parseMarkdownImgBlocks(markdown);
+  const images = mergeImages([], [...fromTable, ...fromBlocks, ...fromImgBlocks]);
+  const skipped = Math.max(0, fromTable.length + fromBlocks.length + fromImgBlocks.length - images.length);
 
   if (images.length === 0) {
     return {
@@ -255,7 +336,7 @@ export const parseImagesMarkdown = (markdown: string): { images: StorageImage[];
       result: {
         imported: 0,
         skipped: 0,
-        errors: ["No images found. Use a markdown table or numbered blocks with image name, URL, destination, and ALT."],
+        errors: ["No images found. Use a markdown table, numbered blocks, or ## IMG-001 field blocks."],
       },
     };
   }

@@ -18,6 +18,7 @@ import {
   defaultImages,
   mergeImages,
   migrateImageLibrary,
+  migrateSelectedStorageImageIds,
   normalizeImage,
   parseImagesCsv,
   parseImagesMarkdown,
@@ -104,8 +105,10 @@ export const prepareProject = (
   const draftFaqs =
     incomingGenerated.draftFaqs.length > 0 ? incomingGenerated.draftFaqs : generateDraftFaqs(project, images);
   const lastDraftedAt = incomingGenerated.lastDraftedAt.trim() || new Date().toISOString();
+  const selectedStorageImages = migrateSelectedStorageImageIds(project.selectedStorageImages);
   const withDraft = {
     ...project,
+    selectedStorageImages,
     generated: {
       ...incomingGenerated,
       draftTitleTag,

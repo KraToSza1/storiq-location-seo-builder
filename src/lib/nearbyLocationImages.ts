@@ -105,7 +105,12 @@ export const upgradeFacilityImageUrl = (facility: NearbyFacility): NearbyFacilit
 };
 
 export const isNearbyLocationCardImage = (url?: string): boolean =>
-  Boolean(url?.trim() && url.includes("/nearby-locations/"));
+  Boolean(
+    url?.trim() &&
+      (url.includes("/nearby-locations/") ||
+        url.includes("becdn.net/media/original/") ||
+        url.includes("mygarageselfstorage.com")),
+  );
 
 export const isWrongNearbyCardImage = (url?: string): boolean =>
   Boolean(url?.includes("/storage-types/"));

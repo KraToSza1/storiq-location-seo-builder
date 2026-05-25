@@ -1,3 +1,4 @@
+import { facilityImageUrlByStoragelyPath } from "./imageLibraryCatalog";
 import { nearbyLocationImage } from "./mediaPaths";
 import type { NearbyFacility } from "../types/storiq";
 
@@ -324,6 +325,16 @@ export const NEARBY_IMAGE_TO_FACILITY_ID: Record<string, string> = Object.fromEn
   ]),
 );
 
+const FACILITY_IMAGE_BY_STORAGELY_URL = facilityImageUrlByStoragelyPath();
+
+const resolveFacilityImageUrl = (storagelyUrl: string, fallbackFilename?: string): string | undefined => {
+  const fromCatalog = FACILITY_IMAGE_BY_STORAGELY_URL.get(storagelyUrl.trim().toLowerCase().replace(/\/+$/, ""));
+  if (fromCatalog) {
+    return fromCatalog;
+  }
+  return fallbackFilename ? nearbyLocationImage(fallbackFilename) : undefined;
+};
+
 /** Legacy starter / catalog URLs mapped to approved Storagely paths. */
 const LEGACY_TEXAS_PATH_REDIRECTS: Record<string, string> = {
   belton: "belton/i-35",
@@ -426,7 +437,7 @@ export const toNearbyFacility = (def: CanonicalFacilityDef): NearbyFacility => (
   address: def.address,
   zipCode: def.zipCode,
   storagelyUrl: def.storagelyUrl,
-  imageUrl: def.imageFilename ? nearbyLocationImage(def.imageFilename) : undefined,
+  imageUrl: resolveFacilityImageUrl(def.storagelyUrl, def.imageFilename),
 });
 
 export const canonicalFacilities = (): NearbyFacility[] => CANONICAL_FACILITY_REGISTRY.map(toNearbyFacility);
@@ -450,7 +461,7 @@ export const upgradeFacilityStoragelyUrl = (facility: NearbyFacility): NearbyFac
     address: canonical.address,
     zipCode: canonical.zipCode,
     storagelyUrl: canonical.storagelyUrl,
-    imageUrl: canonical.imageFilename ? nearbyLocationImage(canonical.imageFilename) : facility.imageUrl,
+    imageUrl: resolveFacilityImageUrl(canonical.storagelyUrl, canonical.imageFilename) ?? facility.imageUrl,
   };
 };
 

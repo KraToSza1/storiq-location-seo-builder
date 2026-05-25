@@ -28,11 +28,13 @@ const storageKeywords = [
   "Truck Storage",
   "Business Storage",
   "Climate-Controlled Storage",
-  "Non Climate-Controlled Storage",
+  "Drive-Up Storage",
   "Student Storage",
   "Military Storage",
   "Retail Storage",
   "Indoor Storage",
+  "Container Storage",
+  "Warehouse Storage",
 ];
 
 const featureKeywords = [
