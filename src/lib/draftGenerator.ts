@@ -1,3 +1,8 @@
+import {
+  buildFacilityWireframeHeadings,
+  buildWireframeFaqKeyword,
+  VALUE_PROPOSITION_OPENING,
+} from "./facilityWireframe";
 import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
@@ -38,42 +43,43 @@ const buildValueBullets = (project: LocationProject): string[] => {
 };
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
+  const { city, state } = project.locationIdentity;
   const place = cityState(project);
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
-  const keyword = project.seo.primaryKeyword || `self storage units in ${place}`;
+  const localKeyword = buildWireframeFaqKeyword(city, state);
   const types = selectedStorageTypes(project, images);
-  const typesText = types.length > 0 ? types.join(", ") : "various storage options";
-  const hasVerifiedLandmarks = false;
+  const typesText = types.length > 0 ? types.join(", ") : "climate-controlled, drive-up, and vehicle storage options";
+  const features = sentenceList(project.existingContent.features.slice(0, 4), "gated access, flexible rentals, and secure storage");
   const localRefs = mergeLocalReferences(project.localContext);
+  const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, place) : place;
+  const address = project.existingContent.address || "the confirmed street address on this page";
+  const officeHours = project.existingContent.officeHours || "available by phone — contact the facility for current office hours";
+  const accessHours = project.existingContent.accessHours || "available by phone — contact the facility for gate and access hours";
 
   return [
     {
-      question: `Do you offer ${keyword}?`,
-      answer: `${facilityName} serves customers in ${place} with storage solutions designed for local households, businesses, and vehicle owners. Contact the facility for current unit availability.`,
+      question: `Do you offer ${localKeyword}?`,
+      answer: `Yes. ${facilityName} provides ${localKeyword} for households, businesses, and vehicle owners throughout ${place}. Contact the facility for current availability, unit sizes, and move-in specials.`,
     },
     {
-      question: `What storage types are available at ${facilityName}?`,
-      answer: `This location highlights ${typesText}. Availability may vary — confirm specific unit sizes and features with the facility team before renting.`,
+      question: `What types of ${localKeyword} are available?`,
+      answer: `${facilityName} offers ${localKeyword} including ${typesText}. Availability varies by unit size — confirm specific options with the facility team before renting.`,
     },
     {
-      question: "What are the office and access hours?",
-      answer: `Office hours: ${project.existingContent.officeHours || "contact the facility for current office hours"}. Access hours: ${project.existingContent.accessHours || "contact the facility for gate and access hours"}.`,
+      question: `What amenities are included with ${localKeyword}?`,
+      answer: `Customers choosing ${localKeyword} at ${facilityName} benefit from ${features}. Amenity availability may vary by unit — ask the on-site team for details.`,
     },
     {
-      question: `Where is ${facilityName} located?`,
-      answer: `${facilityName} is located at ${project.existingContent.address || "add the confirmed street address before publishing"}.`,
+      question: `What are the office and access hours for ${localKeyword}?`,
+      answer: `For ${localKeyword} at ${facilityName}, office hours are ${officeHours} and access hours are ${accessHours}.`,
     },
     {
-      question: `Why choose ${facilityName} for storage in ${place}?`,
-      answer: `${facilityName} combines ${sentenceList(project.existingContent.features.slice(0, 3), "practical facility features")} to support customers who need dependable storage near ${place}.`,
+      question: `Where can I find ${localKeyword} near me?`,
+      answer: `${facilityName} serves customers searching for ${localKeyword} at ${address}. Convenient for residents across ${place}${localRefs.length > 0 ? `, including areas near ${localRefsText}` : ""}.`,
     },
     {
-      question: hasVerifiedLandmarks
-        ? `What areas near ${place} does this facility serve?`
-        : `What should I know about storage near ${place}?`,
-      answer: hasVerifiedLandmarks
-        ? `The facility serves customers near ${sentenceList(localRefs, place)} and surrounding areas.`
-        : `This page can reference local neighborhoods and landmarks only after manual distance verification. Do not publish unverified proximity claims.`,
+      question: `Why choose ${facilityName} for ${localKeyword}?`,
+      answer: `${facilityName} makes ${localKeyword} simple with ${features}, a team that knows ${place}, and flexible rental options. Compare unit sizes and amenities to find the right fit for your storage needs.`,
     },
   ];
 };
@@ -83,14 +89,16 @@ export const generateDraftSections = (
   facilities: NearbyFacility[],
   images: StorageImage[],
 ): DraftSection[] => {
+  const { city, state } = project.locationIdentity;
   const place = cityState(project);
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
-  const keyword = project.seo.primaryKeyword || `self storage in ${place}`;
+  const headings = buildFacilityWireframeHeadings(city, state, place);
+  const localKeyword = buildWireframeFaqKeyword(city, state);
   const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
   const valueBullets = buildValueBullets(project);
   const storageTypes = selectedStorageTypes(project, images);
   const localRefs = mergeLocalReferences(project.localContext);
-  const localRefsText = sentenceList(localRefs, "nearby areas you plan to reference");
+  const localRefsText = sentenceList(localRefs, "nearby neighborhoods, landmarks, and highways");
   const nearby = selectedFacilities(project, facilities);
   const nearbyText = sentenceList(
     nearby.map((facility) => `${facility.facilityName} in ${facility.city}`),
@@ -105,50 +113,50 @@ export const generateDraftSections = (
     {
       id: "intro",
       label: "Section 1",
-      heading: "Introduction",
-      body: `Looking for ${keyword}? ${facilityName} offers a straightforward storage experience in ${place}, with ${featureText} that help local customers find the right unit for their needs.`,
-      bullets: project.existingContent.features.slice(0, 5),
+      heading: headings.features,
+      body: `Introduce facility amenities from the location's Facility Features list (${featureText}). Weave confirmed features naturally across the page where they fit the flow of text.`,
+      bullets: project.existingContent.features.slice(0, 8),
     },
     {
       id: "value",
       label: "Section 2",
-      heading: `Why Choose ${facilityName}?`,
-      body: `When comparing storage options in ${place}, ${facilityName} stands out for customers who want clear information, practical amenities, and a team that understands local storage needs.`,
+      heading: headings.value,
+      body: `${VALUE_PROPOSITION_OPENING} we make it easy to find dependable self storage near ${place}. Follow with 5–8 bullets using the format "**Feature:** Description sentence."`,
       bullets: valueBullets,
     },
     {
       id: "storage",
       label: "Section 3",
-      heading: "Types of Storage",
-      body: `Choose storage types for this location. Card copy appears under each image; link headings only when a destination URL exists in Master Data.`,
+      heading: headings.storage,
+      body: `Storage type cards include an image, H3 heading, and a short description with local tie-ins and featured amenities. Link headings only when a destination URL exists in Master Data.`,
       bullets: storageDescriptions.length > 0 ? storageDescriptions : storageTypes,
     },
     {
       id: "local",
       label: "Section 4",
-      heading: `Serving ${place} and Surrounding Areas`,
-      body: `Build local relevance around ${localRefsText}. Do not state that landmarks are within 10 miles unless you have manually verified distance — this tool does not auto-verify proximity.`,
+      heading: headings.local,
+      body: `Write 150–250 words connecting ${facilityName} to ${place}. Mention ${localRefsText}, lifestyle tie-ins, and adjacent communities. Include geo-semantic keywords naturally. Do not claim landmarks are within 10 miles unless manually verified.`,
       bullets: localRefs.slice(0, 6),
     },
     {
       id: "nearby",
       label: "Section 5",
-      heading: "Other Nearby Locations at My Garage",
-      body: `Help customers compare other My Garage options: ${nearbyText}. These cards must not link back to the current facility.`,
+      heading: headings.nearby,
+      body: `Intro paragraph on nearby cities My Garage serves, then 3 cards with image, H3, description, and CTA "View [location] Storage": ${nearbyText}. Cards must not link back to the current facility.`,
       bullets: nearby.map((facility) => `${facility.facilityName} — ${facility.city}, ${facility.state}`),
     },
     {
       id: "faqs",
       label: "Section 6",
-      heading: "FAQs",
-      body: "FAQ answers must match the FAQPage JSON-LD exactly. Regenerate both together after edits.",
+      heading: headings.faq,
+      body: `Six FAQs optimized for local SEO. Each question or answer must include "${localKeyword}". Visible FAQ copy must match FAQPage JSON-LD exactly.`,
       bullets: generateDraftFaqs(project, images).map((faq) => faq.question),
     },
     {
       id: "map-cta",
       label: "Section 7",
-      heading: "Map + Location + CTA",
-      body: `Close with verified address, phone, map embed, and a CTA to the Storagely page for ${facilityName}.`,
+      heading: headings.map,
+      body: `Two-column layout: Google Map embed (left) and heading plus directions text (right). Include landmark/highway directions, access hours, and a CTA to the Storagely page for ${facilityName}.`,
       bullets: [project.existingContent.address, project.existingContent.phone, project.locationIdentity.storagelyPageUrl].filter(
         Boolean,
       ),

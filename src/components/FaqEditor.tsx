@@ -31,7 +31,8 @@ export default function FaqEditor({
         </button>
       </div>
       <p className="storiq-help">
-        FAQ text must match the exported FAQPage JSON-LD exactly. Edit questions and answers here before export.
+        FAQ text must match the exported FAQPage JSON-LD exactly. Each FAQ should include the wireframe phrase{" "}
+        <strong>Self Storage units in [City, State]</strong> for local SEO. Regenerate to refresh from project data.
       </p>
       <div className="storiq-stack-sm">
         {faqs.map((faq, index) => (

@@ -1,6 +1,12 @@
-import { auditFacilityHeadings, FACILITY_WIREframe_SECTION_SIGNALS } from "./facilityWireframe";
+import {
+  auditFacilityHeadings,
+  buildWireframeFaqKeyword,
+  FACILITY_WIREframe_FAQ_COUNT,
+  FACILITY_WIREframe_SECTION_SIGNALS,
+  normalizeWireframeFaqKeyword,
+} from "./facilityWireframe";
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
-import { renderFaqJsonLd } from "./templateFaq";
+import { buildFaqItems, renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 import { getStorageImageById } from "./imageLibrary";
 import { formatNearbySelectionRequirement, getNearbySelectionLimits, isNearbySelectionCountValid, NEARBY_SELECTION_RANGE_LABEL } from "./nearbySuggestions";
@@ -125,6 +131,23 @@ export const runExportChecks = (
   } catch {
     checks.push(makeCheck("faq-match", "FAQ text matches JSON-LD", "fail", "FAQ JSON-LD could not be parsed."));
   }
+
+  const faqKeyword = normalizeWireframeFaqKeyword(project.locationIdentity.city, project.locationIdentity.state);
+  const faqKeywordLabel = buildWireframeFaqKeyword(project.locationIdentity.city, project.locationIdentity.state);
+  const faqItems = buildFaqItems(project, images);
+  const faqsWithKeyword = faqItems.filter(
+    (item) => item.question.toLowerCase().includes(faqKeyword) || item.answer.toLowerCase().includes(faqKeyword),
+  ).length;
+  checks.push(
+    makeCheck(
+      "faq-local-keyword",
+      "FAQs include local SEO keyword",
+      faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT ? "pass" : "fail",
+      faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT
+        ? `All ${FACILITY_WIREframe_FAQ_COUNT} FAQs include "${faqKeywordLabel}".`
+        : `${faqsWithKeyword}/${FACILITY_WIREframe_FAQ_COUNT} FAQs include the wireframe keyword phrase.`,
+    ),
+  );
 
   const imageTags = countMatches(html, /<img\b/gi);
   const withAlt = countMatches(html, /<img\b(?=[^>]*\salt=["'][^"']+["'])/gi);

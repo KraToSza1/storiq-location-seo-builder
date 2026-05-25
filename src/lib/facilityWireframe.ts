@@ -20,9 +20,18 @@ export const buildFacilityWireframeHeadings = (city: string, state: string, plac
   storage: `Types of Self Storage Units Available in ${city}, ${state}`,
   local: `Serving ${place} and Surrounding Areas`,
   nearby: "Other Nearby Locations at My Garage",
-  faq: `FAQs about Self Storage units in ${city}, ${state}`,
+  faq: `FAQs about Self Storage in ${city}, ${state}`,
   map: `Convenient Self Storage in ${city}, ${state}`,
 });
+
+/** Wireframe FAQ SEO phrase (title-case per client doc). Primary keyword field stays lowercase elsewhere. */
+export const buildWireframeFaqKeyword = (city: string, state: string): string => {
+  const place = [city.trim(), state.trim()].filter(Boolean).join(", ");
+  return place ? `Self Storage units in ${place}` : "Self Storage units";
+};
+
+export const normalizeWireframeFaqKeyword = (city: string, state: string): string =>
+  buildWireframeFaqKeyword(city, state).toLowerCase();
 
 /** Wireframe section signals used in export/SEO audits. */
 export const FACILITY_WIREframe_SECTION_SIGNALS = [
@@ -31,7 +40,7 @@ export const FACILITY_WIREframe_SECTION_SIGNALS = [
   "Types of Self Storage Units Available",
   "Serving",
   "Other Nearby Locations at My Garage",
-  "FAQs about Self Storage units",
+  "FAQs about Self Storage in",
   "map-section",
 ] as const;
 
