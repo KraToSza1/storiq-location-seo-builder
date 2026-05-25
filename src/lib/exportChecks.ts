@@ -2,7 +2,7 @@ import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validat
 import { renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 import { getStorageImageById } from "./imageLibrary";
-import { isNearbySelectionCountValid, NEARBY_SELECTION_MAX, NEARBY_SELECTION_MIN } from "./nearbySuggestions";
+import { formatNearbySelectionRequirement, getNearbySelectionLimits, isNearbySelectionCountValid, NEARBY_SELECTION_RANGE_LABEL } from "./nearbySuggestions";
 
 const makeCheck = (id: string, label: string, status: ExportCheck["status"], message: string): ExportCheck => ({
   id,
@@ -49,14 +49,16 @@ export const runExportChecks = (
     .filter((f): f is NearbyFacility => Boolean(f));
 
   const nearbyCount = project.selectedNearbyLocations.length;
+  const nearbyLimits = getNearbySelectionLimits(project, facilities);
+  const nearbyValid = isNearbySelectionCountValid(nearbyCount, project, facilities);
   checks.push(
     makeCheck(
       "nearby-count",
-      `${NEARBY_SELECTION_MIN}–${NEARBY_SELECTION_MAX} nearby locations selected`,
-      isNearbySelectionCountValid(nearbyCount) ? "pass" : "fail",
-      isNearbySelectionCountValid(nearbyCount)
-        ? `${nearbyCount} nearby facilities selected.`
-        : `Selected ${nearbyCount} — choose between ${NEARBY_SELECTION_MIN} and ${NEARBY_SELECTION_MAX} for export.`,
+      formatNearbySelectionRequirement(nearbyLimits),
+      nearbyValid ? "pass" : "fail",
+      nearbyValid
+        ? `${nearbyCount} nearby ${nearbyCount === 1 ? "facility" : "facilities"} selected.`
+        : `${nearbyCount} nearby ${nearbyCount === 1 ? "facility" : "facilities"} selected — ${NEARBY_SELECTION_RANGE_LABEL} required.`,
     ),
   );
 

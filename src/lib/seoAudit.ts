@@ -4,6 +4,7 @@ import { defaultSettings } from "./projectDefaults";
 import { renderFaqJsonLd, renderStoragelyHtml } from "./templateRenderer";
 import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
+import { mergeLocalReferences } from "./localContextUtils";
 import type { AuditStatus, LocationProject, NearbyFacility, SEOAuditCheck } from "../types/storiq";
 
 const makeCheck = (
@@ -211,7 +212,7 @@ export const runSEOAudit = (
     ),
   );
 
-  if (project.localContext.landmarks.length > 0) {
+  if (mergeLocalReferences(project.localContext).length > 0) {
     checks.push(
       makeCheck(
         "landmark-distance",

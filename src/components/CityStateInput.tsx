@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { formatCityState, parseCityState } from "../lib/cityStateParse";
 
 export default function CityStateInput({
@@ -13,7 +14,15 @@ export default function CityStateInput({
   required?: boolean;
   helpText?: string;
 }) {
-  const display = formatCityState(city, state);
+  const formatted = formatCityState(city, state);
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(formatted);
+
+  useEffect(() => {
+    if (!focused) {
+      setDraft(formatted);
+    }
+  }, [formatted, focused]);
 
   return (
     <label className="block">
@@ -22,9 +31,21 @@ export default function CityStateInput({
       </span>
       <input
         className="storiq-input mt-1"
-        value={display}
+        value={focused ? draft : formatted}
+        onFocus={() => {
+          setFocused(true);
+          setDraft(formatted);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          const parsed = parseCityState(draft);
+          setDraft(formatCityState(parsed.city, parsed.state));
+          onChange(parsed.city, parsed.state);
+        }}
         onChange={(event) => {
-          const parsed = parseCityState(event.target.value);
+          const next = event.target.value;
+          setDraft(next);
+          const parsed = parseCityState(next);
           onChange(parsed.city, parsed.state);
         }}
         placeholder="Orange, TX"

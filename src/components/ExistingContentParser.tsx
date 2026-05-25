@@ -13,7 +13,7 @@ export default function ExistingContentParser({
   content: LocationProject["existingContent"];
   onChange: (content: LocationProject["existingContent"]) => void;
   onExtracted?: (content: LocationProject["existingContent"]) => void;
-  /** Hide address/phone when collected on the NAP step. */
+  /** Hide address when collected on the NAP step. */
   showNapFields?: boolean;
   /** Hide storage types list — selected via Storage Types step. */
   showStorageTypes?: boolean;
@@ -47,17 +47,7 @@ export default function ExistingContentParser({
         Extract from pasted content
       </button>
       {showNapFields ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <TextInput label="Address" value={content.address} onChange={(address) => onChange({ ...content, address })} required />
-          <TextInput
-            label="Phone"
-            value={content.phone}
-            onChange={(phone) => onChange({ ...content, phone })}
-            required
-            placeholder="+1 555 123 4567"
-            helpText="International numbers with a leading + are supported."
-          />
-        </div>
+        <TextInput label="Address" value={content.address} onChange={(address) => onChange({ ...content, address })} required />
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
         <TextInput label="Access hours" value={content.accessHours} onChange={(accessHours) => onChange({ ...content, accessHours })} />

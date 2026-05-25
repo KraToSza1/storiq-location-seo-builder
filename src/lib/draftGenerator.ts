@@ -1,4 +1,5 @@
 import { getStorageImageById } from "./imageLibrary";
+import { mergeLocalReferences } from "./localContextUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -43,6 +44,7 @@ export const generateDraftFaqs = (project: LocationProject, images: StorageImage
   const types = selectedStorageTypes(project, images);
   const typesText = types.length > 0 ? types.join(", ") : "various storage options";
   const hasVerifiedLandmarks = false;
+  const localRefs = mergeLocalReferences(project.localContext);
 
   return [
     {
@@ -70,7 +72,7 @@ export const generateDraftFaqs = (project: LocationProject, images: StorageImage
         ? `What areas near ${place} does this facility serve?`
         : `What should I know about storage near ${place}?`,
       answer: hasVerifiedLandmarks
-        ? `The facility serves customers near ${sentenceList(project.localContext.landmarks, place)} and surrounding neighborhoods.`
+        ? `The facility serves customers near ${sentenceList(localRefs, place)} and surrounding areas.`
         : `This page can reference local neighborhoods and landmarks only after manual distance verification. Do not publish unverified proximity claims.`,
     },
   ];
@@ -87,8 +89,8 @@ export const generateDraftSections = (
   const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
   const valueBullets = buildValueBullets(project);
   const storageTypes = selectedStorageTypes(project, images);
-  const landmarks = sentenceList(project.localContext.landmarks, "nearby areas you plan to reference");
-  const neighborhoods = sentenceList(project.localContext.neighborhoods, "nearby neighborhoods");
+  const localRefs = mergeLocalReferences(project.localContext);
+  const localRefsText = sentenceList(localRefs, "nearby areas you plan to reference");
   const nearby = selectedFacilities(project, facilities);
   const nearbyText = sentenceList(
     nearby.map((facility) => `${facility.facilityName} in ${facility.city}`),
@@ -125,8 +127,8 @@ export const generateDraftSections = (
       id: "local",
       label: "Section 4",
       heading: `Serving ${place} and Surrounding Areas`,
-      body: `Build local relevance around ${landmarks} and ${neighborhoods}. Do not state that landmarks are within 10 miles unless you have manually verified distance — this tool does not auto-verify proximity.`,
-      bullets: [...project.localContext.landmarks, ...project.localContext.neighborhoods].slice(0, 6),
+      body: `Build local relevance around ${localRefsText}. Do not state that landmarks are within 10 miles unless you have manually verified distance — this tool does not auto-verify proximity.`,
+      bullets: localRefs.slice(0, 6),
     },
     {
       id: "nearby",

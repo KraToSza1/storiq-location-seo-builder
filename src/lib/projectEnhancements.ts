@@ -2,7 +2,7 @@ import { buildGoogleMapsIframeMarkup } from "./googleMapsEmbed";
 import { parseGoogleMapsIframe } from "./validators";
 import { extractStoragelyUrlsFromContent } from "./contentExtraction";
 import { getStorageImageById } from "./imageLibrary";
-import { suggestNearbyFacilityIds } from "./nearbySuggestions";
+import { getNearbySelectionLimits, suggestNearbyFacilityIds } from "./nearbySuggestions";
 import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const normalizeCategory = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, " ");
@@ -36,12 +36,13 @@ export const matchNearbyIdsFromContent = (
     .filter((f): f is NearbyFacility => Boolean(f))
     .map((f) => f.id);
 
-  const unique = [...new Set(matched)].slice(0, 6);
-  if (unique.length >= 3) return unique;
+  const limits = getNearbySelectionLimits(project, facilities);
+  const unique = [...new Set(matched)].slice(0, limits.target);
+  if (unique.length >= limits.target || limits.target === 0) return unique;
 
   const suggested = suggestNearbyFacilityIds(project, facilities);
   suggested.forEach((id) => {
-    if (!unique.includes(id) && unique.length < 6) unique.push(id);
+    if (!unique.includes(id) && unique.length < limits.target) unique.push(id);
   });
 
   return unique;

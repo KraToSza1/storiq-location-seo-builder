@@ -3,6 +3,7 @@ import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById, isLinkableStorageType } from "./imageLibrary";
 import { generateDraftTitleTag } from "./draftGenerator";
 import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
+import { mergeLocalReferences } from "./localContextUtils";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
@@ -157,17 +158,19 @@ const renderLocalParagraphs = (project: LocationProject): string => {
     );
   }
 
-  if (localContext.landmarks.length > 0 && paragraphs.length < 3) {
+  const localRefs = mergeLocalReferences(localContext);
+
+  if (localRefs.length > 0 && paragraphs.length < 3) {
     paragraphs.push(
-      `<p>Located near ${localContext.landmarks
+      `<p>Located near ${localRefs
         .slice(0, 3)
         .map((item) => `<strong>${escapeHtml(item)}</strong>`)
         .join(", ")}, this facility supports customers across ${escapeHtml(place)}.</p>`,
     );
   }
 
-  if (localContext.lifestyleTieIns.length > 0 && paragraphs.length < 3) {
-    paragraphs.push(`<p>${escapeHtml(localContext.lifestyleTieIns[0])}</p>`);
+  if (localRefs.length > 3 && paragraphs.length < 3) {
+    paragraphs.push(`<p>${escapeHtml(localRefs[3])}</p>`);
   }
 
   if (paragraphs.length < 2) {
@@ -304,7 +307,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
     <h2>Other Nearby Locations at My Garage</h2>
     <p>${escapeHtml(nearbyIntro)}</p>
     <div class="locations-grid">
-      ${nearbyCards || "<p>Select 3–6 nearby facilities in Step 5 before exporting.</p>"}
+      ${nearbyCards || "<p>Select 3 nearby facilities in Step 5 before exporting.</p>"}
     </div>
   </section>
 

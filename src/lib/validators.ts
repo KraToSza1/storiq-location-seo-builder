@@ -1,4 +1,6 @@
 import { defaultImages, getStorageImageById } from "./imageLibrary";
+import { mergeLocalReferences } from "./localContextUtils";
+import { getNearbySelectionLimits, isNearbySelectionCountValid, selectedNearbyOutsideProximity } from "./nearbySuggestions";
 import type { LocationProject, NearbyFacility, StorageImage, ValidationIssue } from "../types/storiq";
 
 export interface GoogleMapsParseResult {
@@ -76,9 +78,6 @@ export const getProjectValidation = (
   if (!existingContent.address.trim()) {
     hardFails.push(requiredIssue("address", "Address", "Facility address is required."));
   }
-  if (!existingContent.phone.trim()) {
-    hardFails.push(requiredIssue("phone", "Phone", "Phone number is required."));
-  }
   if (!map.isValid) {
     hardFails.push(requiredIssue("mapsIframe", "Google Maps iframe", "A valid Google Maps iframe is required."));
   }
@@ -95,23 +94,39 @@ export const getProjectValidation = (
   if (!existingContent.accessHours.trim()) {
     warnings.push(warningIssue("accessHours", "Access hours", "Access or gate hours are missing."));
   }
-  if (project.localContext.landmarks.length === 0) {
-    warnings.push(warningIssue("landmarks", "Local landmarks", "No local landmarks have been added."));
-  }
-  if (project.localContext.lifestyleTieIns.length === 0) {
-    warnings.push(warningIssue("lifestyleTieIns", "Lifestyle tie-ins", "No lifestyle tie-ins have been added."));
+  if (mergeLocalReferences(project.localContext).length === 0) {
+    warnings.push(warningIssue("localReferences", "Local references", "No local references within 10 miles have been added."));
   }
   if (project.localContext.doNotInclude.length === 0) {
     warnings.push(warningIssue("doNotInclude", "Do-not-include notes", "No do-not-include notes have been added."));
   }
+  const nearbyLimits = getNearbySelectionLimits(project, facilities);
   const nearbyCount = project.selectedNearbyLocations.length;
-  if (nearbyCount < 3) {
+  if (nearbyLimits.availableClose === 0 && nearbyCount > 0) {
     warnings.push(
-      warningIssue("nearbyCount", "Nearby locations", "Select at least 3 nearby facilities for the page section."),
+      warningIssue("nearbyCount", "Nearby locations", "Selected nearby locations are outside the close-proximity range."),
     );
-  } else if (nearbyCount > 6) {
+  } else if (nearbyLimits.availableClose > 0 && !isNearbySelectionCountValid(nearbyCount, project, facilities)) {
     warnings.push(
-      warningIssue("nearbyCount", "Nearby locations", "More than 6 nearby facilities selected — Storagely grid supports up to 6."),
+      warningIssue(
+        "nearbyCount",
+        "Nearby locations",
+        nearbyLimits.target === 1
+          ? "Select 1 nearby location within close proximity."
+          : nearbyLimits.target === 2
+            ? "Select 1–2 nearby locations — only 2 are close enough for this page."
+            : "Select up to 3 nearby locations within close proximity.",
+      ),
+    );
+  }
+  const outsideProximity = selectedNearbyOutsideProximity(project, facilities, project.selectedNearbyLocations);
+  if (outsideProximity.length > 0) {
+    warnings.push(
+      warningIssue(
+        "nearbyProximity",
+        "Nearby proximity",
+        `${outsideProximity.map((f) => f.city).join(", ")} is too far — remove or replace with a closer location.`,
+      ),
     );
   }
   if (!project.generated.faqJsonLd.trim()) {

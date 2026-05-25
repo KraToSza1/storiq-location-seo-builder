@@ -18,6 +18,7 @@ import FacilityLocationImageSelector from "../components/FacilityLocationImageSe
 import StorageTypeSelector from "../components/StorageTypeSelector";
 import { exportHtmlForPublish } from "../lib/htmlExport";
 import { loadDashboardSession, saveDashboardSession } from "../lib/dashboardSession";
+import { applyLocalReferences, mergeLocalReferences } from "../lib/localContextUtils";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { buildPrimaryKeyword } from "../lib/projectDefaults";
 import { useProjects } from "../state/ProjectsContext";
@@ -158,7 +159,7 @@ export default function LocationWorkspace() {
             <div className="storiq-card-header flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="storiq-section-title">Location Brief (NAP)</h2>
-                <p className="storiq-section-subtitle">Name, address, phone, market, and SEO metadata.</p>
+                <p className="storiq-section-subtitle">Name, address, market, and SEO metadata.</p>
               </div>
               <StatusBadge status={project.status} />
             </div>
@@ -179,12 +180,6 @@ export default function LocationWorkspace() {
                   required
                 />
               </div>
-              <TextInput
-                label="Phone"
-                value={project.existingContent.phone}
-                onChange={(phone) => save((current) => ({ ...current, existingContent: { ...current.existingContent, phone } }))}
-                required
-              />
               <CityStateInput
                 city={project.locationIdentity.city}
                 state={project.locationIdentity.state}
@@ -199,6 +194,7 @@ export default function LocationWorkspace() {
                   value={project.locationIdentity.storagelyPageUrl}
                   onChange={(value) => updateIdentity("storagelyPageUrl", value)}
                   required
+                  placeholder="https://www.mygarageselfstorage.com/"
                 />
               </div>
               <TextInput
@@ -301,21 +297,17 @@ export default function LocationWorkspace() {
               All Section 4 local landmarks must be within 10 miles / 16 km of the facility. This MVP marks distance checks as manual
               verification required.
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="storiq-stack gap-4">
               <ListTextarea
-                label="Landmarks within 10 miles"
-                value={project.localContext.landmarks}
-                onChange={(landmarks) => save((current) => ({ ...current, localContext: { ...current.localContext, landmarks } }))}
-              />
-              <ListTextarea
-                label="Neighborhoods within 10 miles"
-                value={project.localContext.neighborhoods}
-                onChange={(neighborhoods) => save((current) => ({ ...current, localContext: { ...current.localContext, neighborhoods } }))}
-              />
-              <ListTextarea
-                label="Lifestyle tie-ins within 10 miles"
-                value={project.localContext.lifestyleTieIns}
-                onChange={(lifestyleTieIns) => save((current) => ({ ...current, localContext: { ...current.localContext, lifestyleTieIns } }))}
+                label="Local references within 10 miles"
+                value={mergeLocalReferences(project.localContext)}
+                onChange={(lines) =>
+                  save((current) => ({
+                    ...current,
+                    localContext: applyLocalReferences(current.localContext, lines),
+                  }))
+                }
+                helpText="One item per line — landmarks, neighborhoods, lifestyle tie-ins, etc."
               />
               <ListTextarea
                 label="Do-not-include notes"

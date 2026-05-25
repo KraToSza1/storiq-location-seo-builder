@@ -177,7 +177,7 @@ export default function MasterDataPage() {
               <TextInput label="Address" value={editingFacility.address} onChange={(v) => setEditingFacility((c) => c && { ...c, address: v })} required />
             </div>
             <div className="md:col-span-2">
-              <TextInput label="Storagely URL" value={editingFacility.storagelyUrl} onChange={(v) => setEditingFacility((c) => c && { ...c, storagelyUrl: v })} required />
+              <TextInput label="Storagely URL" value={editingFacility.storagelyUrl} onChange={(v) => setEditingFacility((c) => c && { ...c, storagelyUrl: v })} required placeholder="https://www.mygarageselfstorage.com/" />
             </div>
             <TextInput label="Phone (optional)" value={editingFacility.phone || ""} onChange={(v) => setEditingFacility((c) => c && { ...c, phone: v })} />
             <TextInput label="Image URL (optional)" value={editingFacility.imageUrl || ""} onChange={(v) => setEditingFacility((c) => c && { ...c, imageUrl: v })} />

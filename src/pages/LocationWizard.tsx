@@ -12,6 +12,7 @@ import RequiredFieldBadge from "../components/RequiredFieldBadge";
 import StorageTypeSelector from "../components/StorageTypeSelector";
 import WizardStep from "../components/WizardStep";
 import { generateDraftFaqs } from "../lib/draftGenerator";
+import { applyLocalReferences, mergeLocalReferences } from "../lib/localContextUtils";
 import { saveDashboardSession } from "../lib/dashboardSession";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { enhanceProjectFromLibraries, matchNearbyIdsFromContent } from "../lib/projectEnhancements";
@@ -124,7 +125,7 @@ export default function LocationWizard() {
       return (
         <WizardStep
           title="Step 1: NAP"
-          description="Name, address, and phone for this facility, plus market and Storagely page details."
+          description="Name, address, and market for this facility, plus Storagely page details."
         >
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -144,14 +145,6 @@ export default function LocationWizard() {
                 required
               />
             </div>
-            <TextInput
-              label="Phone"
-              value={project.existingContent.phone}
-              onChange={(phone) => setProject((current) => ({ ...current, existingContent: { ...current.existingContent, phone } }))}
-              required
-              placeholder="+1 555 123 4567"
-              helpText="International numbers with a leading + are supported."
-            />
             <CityStateInput
               city={project.locationIdentity.city}
               state={project.locationIdentity.state}
@@ -166,7 +159,7 @@ export default function LocationWizard() {
                 value={project.locationIdentity.storagelyPageUrl}
                 onChange={(value) => updateIdentity("storagelyPageUrl", value)}
                 required
-                placeholder="https://www.mygarageselfstorage.com/self-storage/tx/city/location/"
+                placeholder="https://www.mygarageselfstorage.com/"
               />
             </div>
             <div className="md:col-span-2">
@@ -236,21 +229,17 @@ export default function LocationWizard() {
             All local landmarks must be within 10 miles / 16 km of the facility. For this MVP, these checks are marked as needs manual
             verification.
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="storiq-stack gap-4">
             <ListTextarea
-              label="Landmarks within 10 miles"
-              value={project.localContext.landmarks}
-              onChange={(landmarks) => setProject((current) => ({ ...current, localContext: { ...current.localContext, landmarks } }))}
-            />
-            <ListTextarea
-              label="Neighborhoods within 10 miles"
-              value={project.localContext.neighborhoods}
-              onChange={(neighborhoods) => setProject((current) => ({ ...current, localContext: { ...current.localContext, neighborhoods } }))}
-            />
-            <ListTextarea
-              label="Lifestyle tie-ins within 10 miles"
-              value={project.localContext.lifestyleTieIns}
-              onChange={(lifestyleTieIns) => setProject((current) => ({ ...current, localContext: { ...current.localContext, lifestyleTieIns } }))}
+              label="Local references within 10 miles"
+              value={mergeLocalReferences(project.localContext)}
+              onChange={(lines) =>
+                setProject((current) => ({
+                  ...current,
+                  localContext: applyLocalReferences(current.localContext, lines),
+                }))
+              }
+              helpText="One item per line — landmarks, neighborhoods, lifestyle tie-ins, etc."
             />
             <ListTextarea
               label="Do-not-include notes"
@@ -264,7 +253,7 @@ export default function LocationWizard() {
 
     if (step === 4) {
       return (
-        <WizardStep title="Step 5: Nearby Locations" description="Pick 3–6 nearby locations with correct photos from the full library. Use search and scroll to see every eligible facility.">
+        <WizardStep title="Step 5: Nearby Locations" description="All locations are listed below (nearest first). The 3 closest to your Storagely page URL are auto-selected — search or scroll to swap any card.">
           <NearbyLocationSelector
             project={project}
             facilities={facilities}

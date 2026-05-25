@@ -1,5 +1,6 @@
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { defaultFacilities } from "./facilityLibrary";
+import { mergeLocalReferences } from "./localContextUtils";
 import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const lines = (items: string[]): string => (items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : "- None provided");
@@ -66,14 +67,8 @@ NEARBY LOCATIONS
 ${nearby || "- None selected"}
 
 LOCAL CONTEXT
-Landmarks within 10 miles / 16 km, manual verification required:
-${lines(project.localContext.landmarks)}
-
-Neighborhoods within 10 miles / 16 km:
-${lines(project.localContext.neighborhoods)}
-
-Lifestyle tie-ins within 10 miles / 16 km:
-${lines(project.localContext.lifestyleTieIns)}
+Local references within 10 miles / 16 km, manual verification required:
+${lines(mergeLocalReferences(project.localContext))}
 
 Do-not-include notes:
 ${lines(project.localContext.doNotInclude)}

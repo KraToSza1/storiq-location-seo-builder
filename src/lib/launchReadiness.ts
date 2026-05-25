@@ -1,4 +1,5 @@
-import { isNearbySelectionCountValid } from "./nearbySuggestions";
+import { formatNearbySelectionRequirement, getNearbySelectionLimits, isNearbySelectionCountValid, NEARBY_SELECTION_RANGE_LABEL } from "./nearbySuggestions";
+import { mergeLocalReferences } from "./localContextUtils";
 import { getProjectValidation, hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
 import { runExportChecks } from "./exportChecks";
 import type { LaunchReadiness, LaunchReadinessItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -42,7 +43,7 @@ export const getLaunchReadiness = (
 
   const nearbyMissingUrl = selectedFacilities.filter((f) => !f.storagelyUrl).length;
   const nearbyMissingImage = selectedFacilities.filter((f) => !f.imageUrl).length;
-  const landmarkWarning = project.localContext.landmarks.length > 0;
+  const landmarkWarning = mergeLocalReferences(project.localContext).length > 0;
 
   const blockedReasons: string[] = [];
   if (!project.locationIdentity.city.trim()) blockedReasons.push("Missing city");
@@ -50,7 +51,6 @@ export const getLaunchReadiness = (
   if (!project.locationIdentity.facilityName.trim()) blockedReasons.push("Missing facility name");
   if (!project.seo.primaryKeyword.trim()) blockedReasons.push("Missing primary keyword");
   if (!project.existingContent.address.trim()) blockedReasons.push("Missing address");
-  if (!project.existingContent.phone.trim()) blockedReasons.push("Missing phone");
   if (!map.isValid) blockedReasons.push("Missing Google Maps iframe");
   if (project.selectedStorageImages.length === 0) blockedReasons.push("No storage types selected");
   if (project.selectedNearbyLocations.length === 0) blockedReasons.push("No nearby locations selected");
@@ -63,8 +63,13 @@ export const getLaunchReadiness = (
   if (landmarkWarning) warnings.push("Landmark distance not verified — manual review required");
   if (nearbyMissingImage > 0) warnings.push(`${nearbyMissingImage} nearby location(s) missing image`);
   if (nearbyMissingUrl > 0) warnings.push(`${nearbyMissingUrl} nearby location(s) missing URL`);
-  if (!isNearbySelectionCountValid(project.selectedNearbyLocations.length)) {
-    warnings.push("Nearby locations should be between 3 and 6");
+  const nearbyLimits = getNearbySelectionLimits(project, facilities);
+  if (!isNearbySelectionCountValid(project.selectedNearbyLocations.length, project, facilities)) {
+    warnings.push(
+      nearbyLimits.target === 0
+        ? `Select ${NEARBY_SELECTION_RANGE_LABEL} (add Storagely page URL in Step 1 first)`
+        : `Nearby locations should be ${formatNearbySelectionRequirement(nearbyLimits)}`,
+    );
   }
   if (map.isValid && (!map.hasLazyLoading || !map.hasTitle || !map.hasReferrerPolicy)) {
     warnings.push("Map iframe missing lazy loading, title, or referrerpolicy");
@@ -82,7 +87,7 @@ export const getLaunchReadiness = (
   const mapScore = map.isValid && map.hasLazyLoading && map.hasTitle && map.hasReferrerPolicy ? 100 : map.isValid ? 65 : 15;
   const nearbyCount = project.selectedNearbyLocations.length;
   const nearbyScore =
-    isNearbySelectionCountValid(nearbyCount) && nearbyMissingUrl === 0 ? 100 : nearbyCount > 0 ? 50 : 20;
+    isNearbySelectionCountValid(nearbyCount, project, facilities) && nearbyMissingUrl === 0 ? 100 : nearbyCount > 0 ? 50 : 20;
   const schemaScore = schemaFail ? 25 : 100;
   const exportScore = project.generated.html && !exportFail ? 100 : project.generated.html ? 55 : 25;
 
@@ -126,12 +131,14 @@ export const getLaunchReadiness = (
     item(
       "nearby",
       "Nearby Locations",
-      !isNearbySelectionCountValid(project.selectedNearbyLocations.length) || nearbyMissingUrl > 0 ? "fail" : "pass",
+      !isNearbySelectionCountValid(project.selectedNearbyLocations.length, project, facilities) || nearbyMissingUrl > 0
+        ? "fail"
+        : "pass",
       nearbyScore,
-      isNearbySelectionCountValid(project.selectedNearbyLocations.length)
-        ? `${project.selectedNearbyLocations.length} nearby facilities selected (3–6).`
-        : `Selected ${project.selectedNearbyLocations.length} — need 3–6.`,
-      "Pick 3–6 eligible facilities from Master Data.",
+      isNearbySelectionCountValid(project.selectedNearbyLocations.length, project, facilities)
+        ? `${project.selectedNearbyLocations.length} nearby ${project.selectedNearbyLocations.length === 1 ? "facility" : "facilities"} selected (${NEARBY_SELECTION_RANGE_LABEL}).`
+        : `${project.selectedNearbyLocations.length} nearby ${project.selectedNearbyLocations.length === 1 ? "facility" : "facilities"} selected (${NEARBY_SELECTION_RANGE_LABEL}).`,
+      "Pick the closest eligible facilities from Master Data.",
     ),
     item(
       "schema",
