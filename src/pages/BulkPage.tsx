@@ -2,7 +2,9 @@ import { CheckCircle2, Download, FileUp, Layers, XCircle } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import GoogleSheetsImport from "../components/GoogleSheetsImport";
-import { bulkCsvTemplate, bulkRowToProject, parseBulkCsv } from "../lib/bulkImport";
+import { bulkCsvTemplate, bulkRowToProject } from "../lib/bulkImport";
+import { parseBulkImportCsv } from "../lib/deliverablesTrackerImport";
+import type { BulkCsvRow } from "../types/storiq";
 import { findNextIncompleteProject } from "../lib/projectQueue";
 import { useProjects } from "../state/ProjectsContext";
 
@@ -20,7 +22,7 @@ export default function BulkPage() {
   const { addProject, settings, facilities, images, projects } = useProjects();
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const [rows, setRows] = useState<ReturnType<typeof parseBulkCsv>["rows"]>([]);
+  const [rows, setRows] = useState<BulkCsvRow[]>([]);
   const [missingColumns, setMissingColumns] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [createdIds, setCreatedIds] = useState<string[]>([]);
@@ -28,14 +30,19 @@ export default function BulkPage() {
   const validRows = rows.filter((row) => row.valid);
   const invalidRows = rows.filter((row) => !row.valid);
 
+  const [importFormat, setImportFormat] = useState<"standard" | "tracker" | null>(null);
+
   const applyCsv = (csv: string, sourceLabel = "CSV") => {
-    const parsed = parseBulkCsv(csv);
+    const parsed = parseBulkImportCsv(csv);
     setRows(parsed.rows);
     setMissingColumns(parsed.missingColumns);
+    setImportFormat(parsed.format);
     setMessage(
       parsed.missingColumns.length > 0
         ? `${sourceLabel}: missing columns ${parsed.missingColumns.join(", ")}`
-        : `${sourceLabel}: parsed ${parsed.rows.length} row(s). ${parsed.rows.filter((r) => r.valid).length} valid.`,
+        : parsed.format === "tracker"
+          ? `${sourceLabel}: Client Deliverables Tracker detected — ${parsed.rows.length} row(s), ${parsed.rows.filter((r) => r.valid).length} valid. Skipped ${parsed.skipped ?? 0} (section headers / non–My Garage rows).`
+          : `${sourceLabel}: parsed ${parsed.rows.length} row(s). ${parsed.rows.filter((r) => r.valid).length} valid.`,
     );
   };
 
@@ -77,14 +84,27 @@ export default function BulkPage() {
           <div>
             <h1 className="storiq-page-title">Bulk Builder</h1>
             <p className="storiq-page-subtitle">
-              Upload CSV or Google Sheets to create draft projects. Each row auto-fills map embed, nearby picks, and storage types when master data is loaded.
+              Upload CSV or Google Sheets to create draft projects — including the client&apos;s <strong>On-Page SEO</strong> deliverables tab. Each row auto-fills map embed, nearby picks, and storage types when master data is loaded.
             </p>
           </div>
         </div>
       </section>
 
+      <section className="storiq-highlight-banner">
+        <h2 className="storiq-section-title">Client Deliverables Tracker (Google Sheet)</h2>
+        <p className="storiq-section-subtitle mt-2">
+          Paste the URL for the <strong>On-Page SEO</strong> tab below. StorIQ reads ASSIGNEE, TARGET CITY, URL, KEYWORD, and Notes — then creates one draft project per My Garage row. No retyping city, keyword, or Storagely URL.
+        </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm" style={{ color: "var(--storiq-fg-secondary)" }}>
+          <li>Client shares the sheet with your team only (Google Workspace Viewer — not public).</li>
+          <li>Open the <strong>On-Page SEO</strong> tab and copy the browser URL (includes <code className="storiq-code px-1">#gid=…</code>).</li>
+          <li>Paste below → Import → preview → Create draft projects.</li>
+          <li>Open each project, finish the wizard, Copy HTML once — paste into Storagely.</li>
+        </ol>
+      </section>
+
       <section className="storiq-card storiq-card--padding">
-        <h2 className="storiq-section-title">Required CSV columns</h2>
+        <h2 className="storiq-section-title">Standard CSV columns (optional template)</h2>
         <p className="storiq-section-subtitle mt-2">
           <code className="storiq-code px-2 py-0.5" style={{ display: "inline" }}>city, state, zipCode, facilityName, storagelyPageUrl</code>
           {" "}— optional:{" "}
@@ -151,6 +171,7 @@ export default function BulkPage() {
                     <th>Row</th>
                     <th>Facility</th>
                     <th>Market</th>
+                    {importFormat === "tracker" ? <th>Assignee</th> : null}
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -162,6 +183,7 @@ export default function BulkPage() {
                       <td>
                         {row.city}, {row.state} {row.zipCode}
                       </td>
+                      {importFormat === "tracker" ? <td>{row.assignee || "—"}</td> : null}
                       <td>
                         {row.valid ? (
                           <span className="storiq-badge storiq-badge-pass">Valid</span>

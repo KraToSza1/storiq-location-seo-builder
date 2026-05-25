@@ -152,6 +152,11 @@ export interface BulkCsvRow {
   rawContent: string;
   valid: boolean;
   errors: string[];
+  /** From Client Deliverables Tracker (optional). */
+  assignee?: string;
+  indexationStatus?: string;
+  workflowStatus?: string;
+  notes?: string;
 }
 
 export interface ExportCheck {
