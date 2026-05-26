@@ -8,6 +8,7 @@ import {
   restoreAllDraftsFromBaseline,
   restoreDraftSectionFromBaseline,
 } from "../lib/draftGenerator";
+import { debugLog } from "../lib/debugLog";
 import { useProjects } from "../state/ProjectsContext";
 import type { DraftSection, LocationProject } from "../types/storiq";
 
@@ -101,6 +102,7 @@ export default function DraftGeneratorPanel({ project }: { project: LocationProj
   };
 
   const regenerateAll = () => {
+    debugLog("DraftGeneratorPanel", "Refresh All clicked", { projectId: project.id });
     applyGenerated(
       (current) => refreshAllDraftContent(current, facilities, images),
       "All sections, title, meta, and FAQs refreshed from your latest brief.",

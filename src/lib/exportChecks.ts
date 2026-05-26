@@ -1,5 +1,6 @@
 import { formatNearbySelectionRequirement, getNearbySelectionLimits, isNearbySelectionCountValid, NEARBY_SELECTION_RANGE_LABEL } from "./nearbySuggestions";
 import { makeExportCheck } from "./staticHtmlChecks";
+import { debugLog, debugWarn } from "./debugLog";
 import { runValidationGate, validationGatePass, gateChecksToExportChecks } from "./validationGate";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -19,6 +20,7 @@ export const runExportChecks = (
   images: StorageImage[],
   facilities: NearbyFacility[],
 ): ExportCheck[] => {
+  debugLog("exportChecks", "start", { projectId: project.id, city: project.locationIdentity.city });
   const gateChecks = runValidationGate({ html, project, images, facilities });
   const checks = gateChecksToExportChecks(gateChecks);
 
@@ -35,6 +37,12 @@ export const runExportChecks = (
         : `${nearbyCount} nearby ${nearbyCount === 1 ? "facility" : "facilities"} selected — ${NEARBY_SELECTION_RANGE_LABEL} required.`,
     ),
   );
+
+  const fails = checks.filter((c) => c.status === "fail");
+  debugLog("exportChecks", "done", { pass: checks.length - fails.length, fail: fails.length, canExport: fails.length === 0 });
+  if (fails.length > 0) {
+    debugWarn("exportChecks", "blocking failures", fails.map((c) => ({ id: c.id, message: c.message })));
+  }
 
   return checks;
 };

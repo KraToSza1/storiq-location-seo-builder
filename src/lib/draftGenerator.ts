@@ -9,6 +9,7 @@ import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import { extractFaqsFromRawContent } from "./contentExtraction";
 import { amenitiesForSection1, buildSection1IntroFallback, stripPromotionalLanguage, valueBulletsForSection2 } from "./myGarageGenerationSpec";
+import { debugLog, debugWarn } from "./debugLog";
 import { isEditorInstruction } from "./templateDraftUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -137,6 +138,7 @@ export const sanitizeDraftSections = (
       return section;
     }
     if (isStaleDraftSection(section)) {
+      debugLog("sanitizeDraftSections", `replaced stale section: ${section.id}`);
       return replacement;
     }
     return { ...section, heading: replacement.heading, label: replacement.label };
@@ -212,7 +214,10 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
   const { city, state } = project.locationIdentity;
-  const sourceFaqs = extractFaqsFromRawContent(project.existingContent.rawContent)
+  const rawFaqs = extractFaqsFromRawContent(project.existingContent.rawContent);
+  debugLog("generateDraftFaqs", "raw scraped FAQs", { count: rawFaqs.length, questions: rawFaqs.map((f) => f.question) });
+
+  const sourceFaqs = rawFaqs
     .map((faq) => adaptSourceFaq(faq, city, state))
     .filter((faq): faq is FaqItem => Boolean(faq));
   const featureFaqs = buildFacilityFeatureFaqs(project, images, formatPlaceTitleCase(city, state));
@@ -232,10 +237,20 @@ export const generateDraftFaqs = (project: LocationProject, images: StorageImage
     }
   });
 
+  debugLog("generateDraftFaqs", "merged FAQs", {
+    fromSource: sourceFaqs.length,
+    total: merged.length,
+    questions: merged.map((f) => f.question),
+  });
+
   return merged.slice(0, 6);
 };
 
 export const sanitizeDraftFaqs = (project: LocationProject, faqs: FaqItem[], images: StorageImage[]): FaqItem[] => {
+  const rejected = faqs.filter((faq) => !isValidFaqCandidate(faq.question, faq.answer));
+  if (rejected.length > 0) {
+    debugWarn("sanitizeDraftFaqs", "rejected invalid FAQs — will regenerate", rejected);
+  }
   const cleaned = faqs.filter((faq) => isValidFaqCandidate(faq.question, faq.answer));
   if (cleaned.length >= 6) {
     return cleaned.slice(0, 6);
@@ -248,6 +263,7 @@ export const sanitizeDraftFaqs = (project: LocationProject, faqs: FaqItem[], ima
       merged.push(faq);
     }
   });
+  debugLog("sanitizeDraftFaqs", "result", { kept: merged.length, questions: merged.map((f) => f.question) });
   return merged.slice(0, 6);
 };
 
@@ -383,6 +399,7 @@ export const refreshAllDraftContent = (
   facilities: NearbyFacility[],
   images: StorageImage[],
 ): Pick<LocationProject["generated"], "draftTitleTag" | "draftMetaDescription" | "draftSections" | "draftFaqs" | "lastDraftedAt" | "draftBaseline"> => {
+  debugLog("refreshAllDraftContent", "start", { projectId: project.id, facility: project.locationIdentity.facilityName });
   const draftTitleTag = generateDraftTitleTag(project);
   const draftMetaDescription = generateDraftMetaDescription(project);
   const draftSections = generateDraftSections(project, facilities, images);
@@ -394,6 +411,12 @@ export const refreshAllDraftContent = (
     draftSections: cloneDraftSections(draftSections),
     draftFaqs: cloneDraftFaqs(draftFaqs),
   };
+
+  debugLog("refreshAllDraftContent", "done", {
+    sections: draftSections.length,
+    faqs: draftFaqs.length,
+    localRefs: mergeLocalReferences(project.localContext),
+  });
 
   return { draftTitleTag, draftMetaDescription, draftSections, draftFaqs, lastDraftedAt, draftBaseline };
 };

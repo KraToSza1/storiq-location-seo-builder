@@ -21,6 +21,7 @@ import { formatValueBullet } from "./valuePropositionCopy";
 import { renderSelfStorageJsonLd } from "./templateJsonLd";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
 import { nearbyCardDescription, nearbyCardImageAlt, nearbyFacilityHeading } from "./contentQuality";
+import { debugLog, debugWarn } from "./debugLog";
 import { cityState, escapeHtml, externalLinkAttrs, formatPhoneDisplay, formatTelHref, safeUrl } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -81,6 +82,7 @@ const renderStorageCard = (
   const alt = buildStorageImageAlt(image, project);
   const description = storageCardDescription(image, project, images);
   const destinationUrl = resolveStorageDestinationUrl(image);
+  debugLog("storageCard", image.category, { destinationUrl: destinationUrl ?? "(no link — plain H3)" });
   const heading = destinationUrl
     ? `<h3><a href="${safeUrl(destinationUrl)}" class="storage-card__heading-link"${externalLinkAttrs(destinationUrl)}>${escapeHtml(image.category)}</a></h3>`
     : `<h3>${escapeHtml(image.category)}</h3>`;
@@ -175,8 +177,18 @@ export const renderStoragelyHtml = (
   images: StorageImage[] = defaultImages,
   publishAssetBaseUrl: string = DEFAULT_PUBLISH_ASSET_BASE,
 ): string => {
+  debugLog("renderHtml", "start", {
+    facility: project.locationIdentity.facilityName,
+    city: project.locationIdentity.city,
+    storageSelected: project.selectedStorageImages.length,
+    nearbySelected: project.selectedNearbyLocations.length,
+    phone: project.existingContent.phone,
+    mapValid: project.googleMaps.isValid,
+  });
+
   const validation = getProjectValidation(project, facilities, images);
   if (validation.hardFails.length > 0) {
+    debugWarn("renderHtml", "blocked — validation hard fails", validation.hardFails);
     return formatGenerationBlocked(validation.hardFails);
   }
 
@@ -202,6 +214,7 @@ export const renderStoragelyHtml = (
     .map((image) => renderStorageCard(image, project, images, publishAssetBaseUrl))
     .join("\n");
   if (storageCardCount === 1) {
+    debugWarn("renderHtml", "blocked — only one storage card");
     return formatGenerationBlocked([
       {
         id: "storage-cards",
@@ -214,6 +227,7 @@ export const renderStoragelyHtml = (
 
   const nearbyMissingImages = nearby.filter((facility) => !facility.imageUrl?.trim());
   if (nearbyMissingImages.length > 0) {
+    debugWarn("renderHtml", "blocked — nearby missing images", nearbyMissingImages.map((f) => f.facilityName));
     return formatGenerationBlocked([
       {
         id: "nearby-images",
@@ -354,6 +368,18 @@ ${MASTER_TEMPLATE_CSS}
 
 </body>
 </html>`;
+
+  debugLog("renderHtml", "success", {
+    htmlLength: documentHtml.length,
+    storageCards: storageCardCount,
+    nearbyCards: nearby.length,
+    faqCount: faqItems.length,
+    phoneDisplay: phone,
+    telHref,
+    linkedStorageTypes: selectedStorageImages(project, images)
+      .filter((img) => resolveStorageDestinationUrl(img))
+      .map((img) => img.category),
+  });
 
   return documentHtml;
 };

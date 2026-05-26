@@ -20,6 +20,7 @@ import {
   parseEmbeddedJsonLd,
 } from "./staticHtmlChecks";
 import { parseGeoFromMapEmbed } from "./templateJsonLd";
+import { debugLog, debugTable } from "./debugLog";
 import { parsePhoneDigits } from "./templateUtils";
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -160,6 +161,11 @@ const properNounCount = (sectionHtml: string): number => {
 
 export const runValidationGate = (input: ValidationGateInput): ValidationGateCheck[] => {
   const { html, project, images, facilities, overrides = [] } = input;
+  debugLog("validationGate", "start", {
+    facility: project?.locationIdentity.facilityName ?? "(fixture/html only)",
+    city: project?.locationIdentity.city,
+    htmlLength: html.length,
+  });
   const overrideMap = parseOverrides(overrides);
   const checks: ValidationGateCheck[] = [];
   const push = (check: ValidationGateCheck) => {
@@ -635,6 +641,19 @@ export const runValidationGate = (input: ValidationGateInput): ValidationGateChe
       ? pass("G3", "Storage-type fidelity", "judgment", `${renderedTypes.length} storage types rendered — confirm against source content.`)
       : { ...fail("G3", "Storage-type fidelity", "judgment", "Too few storage types to validate source fidelity."), overrideEligible: true },
   );
+
+  const failed = checks.filter((c) => !c.passed);
+  debugLog("validationGate", "done", {
+    passed: checks.length - failed.length,
+    failed: failed.length,
+    total: checks.length,
+  });
+  if (failed.length > 0) {
+    debugTable(
+      "validationGate failures",
+      failed.map((c) => ({ id: c.id, label: c.label, message: c.message, category: c.category })),
+    );
+  }
 
   return checks;
 };

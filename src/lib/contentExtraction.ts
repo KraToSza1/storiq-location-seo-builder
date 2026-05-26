@@ -1,6 +1,7 @@
 import { areaCodesForState } from "../config/validationGate/areaCodesByState";
 import { isValidFaqCandidate } from "./contentQuality";
 import { stripPromotionalLanguage } from "./myGarageGenerationSpec";
+import { debugLog } from "./debugLog";
 import { formatPhoneDisplay, parsePhoneDigits } from "./templateUtils";
 
 const phoneRegex = /\+\d[\d\s().-]{6,}\d|(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
@@ -254,6 +255,14 @@ export const extractContentClues = (rawContent: string, state = "TX"): Extracted
   const officeHours = findHoursLines(lines, "office");
   const storageTypes = storageKeywords.filter((keyword) => includesLoose(sanitized, keyword));
   const features = extractFeaturesAndAmenities(sanitized).map((item) => stripPromotionalLanguage(item)).filter(Boolean);
+
+  debugLog("extractContent", "clues from raw content", {
+    state,
+    phone,
+    address,
+    featureCount: features.length,
+    storageTypeCount: storageTypes.length,
+  });
 
   return {
     phone,

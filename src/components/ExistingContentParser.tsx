@@ -1,4 +1,5 @@
 import { Wand2 } from "lucide-react";
+import { debugLog } from "../lib/debugLog";
 import { extractContentClues } from "../lib/contentExtraction";
 import { ListTextarea, TextArea, TextInput } from "./FormControls";
 import type { LocationProject } from "../types/storiq";
@@ -31,6 +32,7 @@ export default function ExistingContentParser({
       features: content.features.length ? content.features : extracted.features,
       storageTypes: content.storageTypes.length ? content.storageTypes : extracted.storageTypes,
     };
+    debugLog("ExistingContentParser", "extract clicked", { state, extracted, nextPhone: next.phone });
     onChange(next);
     onExtracted?.(next);
   };

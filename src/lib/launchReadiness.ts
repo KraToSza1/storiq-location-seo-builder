@@ -1,6 +1,7 @@
 import { formatNearbySelectionRequirement, getNearbySelectionLimits, isNearbySelectionCountValid, NEARBY_SELECTION_RANGE_LABEL } from "./nearbySuggestions";
 import { mergeLocalReferences } from "./localContextUtils";
 import { getProjectValidation, hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
+import { debugLog, debugWarn } from "./debugLog";
 import { runExportChecks } from "./exportChecks";
 import type { LaunchReadiness, LaunchReadinessItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -36,6 +37,15 @@ export const getLaunchReadiness = (
   const schemaFail = project.audit.checks.some((check) => check.id.includes("faq") && check.status === "fail");
   const exportChecks = runExportChecks(project, project.generated.html, images, facilities);
   const exportFail = exportChecks.some((c) => c.status === "fail");
+
+  debugLog("launchReadiness", "computed inputs", {
+    projectId: project.id,
+    validationFails: validation.hardFails.length,
+    exportFail,
+    auditFails: failCount,
+    mapValid: map.isValid,
+    htmlLength: project.generated.html.length,
+  });
 
   const selectedFacilities = project.selectedNearbyLocations
     .map((id) => facilities.find((f) => f.id === id))
@@ -175,6 +185,12 @@ export const getLaunchReadiness = (
   const status: LaunchReadiness["status"] =
     blockedReasons.length > 0 ? "blocked" : warnings.length > 0 || items.some((i) => i.status === "warning") ? "needs_review" : "ready";
   const overallLabel = status === "ready" ? "Ready" : status === "needs_review" ? "Needs Review" : "Blocked";
+
+  if (blockedReasons.length > 0) {
+    debugWarn("launchReadiness", "BLOCKED", blockedReasons);
+  } else {
+    debugLog("launchReadiness", "status", { status, overallLabel, score, warnings: warnings.length });
+  }
 
   return {
     score,

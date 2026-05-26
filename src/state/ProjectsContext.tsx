@@ -32,6 +32,8 @@ import { resolvePublishAssetBaseUrl } from "../lib/assetUrls";
 import { cloneProject, defaultSettings, mergeWithProjectDefaults } from "../lib/projectDefaults";
 import { runSEOAudit } from "../lib/seoAudit";
 import { renderFaqJsonLd, renderStoragelyHtml } from "../lib/templateRenderer";
+import { debugLog, debugWarn } from "../lib/debugLog";
+import { isGenerationBlockedOutput } from "../lib/myGarageGenerationSpec";
 import { getProjectValidation } from "../lib/validators";
 import type { AppSettings, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 import { ProjectsContext, type ProjectsContextValue } from "./projectsContextRef";
@@ -95,8 +97,19 @@ export const prepareProject = (
   images: StorageImage[] = defaultImages,
   settings: AppSettings = defaultSettings,
 ): LocationProject => {
+  debugLog("prepareProject", "start", {
+    projectId: project.id,
+    facility: project.locationIdentity.facilityName,
+    city: project.locationIdentity.city,
+    state: project.locationIdentity.state,
+  });
+
   const publishAssetBaseUrl = resolvePublishAssetBaseUrl(settings);
   const incomingGenerated = project.generated;
+  const validation = getProjectValidation(project, facilities, images);
+  if (validation.hardFails.length > 0) {
+    debugWarn("prepareProject", "wizard validation hard fails", validation.hardFails);
+  }
   const draftTitleTag = incomingGenerated.draftTitleTag.trim() || generateDraftTitleTag(project);
   const draftMetaDescription =
     incomingGenerated.draftMetaDescription.trim() || generateDraftMetaDescription(project);
@@ -151,6 +164,24 @@ export const prepareProject = (
     },
   };
   const audit = runSEOAudit(withGenerated, html, facilities, images);
+  const blocked = isGenerationBlockedOutput(html);
+
+  debugLog("prepareProject", "done", {
+    projectId: project.id,
+    htmlLength: html.length,
+    generationBlocked: blocked,
+    draftSectionCount: draftSections.length,
+    draftFaqCount: draftFaqs.length,
+    selectedStorageImages: selectedStorageImages.length,
+    selectedNearby: project.selectedNearbyLocations.length,
+    status: deriveStatus(withGenerated, facilities, images),
+    auditScore: audit.score,
+    auditFails: audit.checks.filter((c) => c.status === "fail").length,
+  });
+
+  if (blocked) {
+    debugWarn("prepareProject", "HTML is generation-blocked — check wizard required fields", html.slice(0, 400));
+  }
 
   return {
     ...withGenerated,

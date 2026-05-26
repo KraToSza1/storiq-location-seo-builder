@@ -1,5 +1,6 @@
 import { MapPin, Sparkles } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { debugLog } from "../lib/debugLog";
 import { buildGoogleMapsFromProject, getMapPreviewSrc } from "../lib/googleMapsEmbed";
 import { parseGoogleMapsIframe } from "../lib/validators";
 import { TextArea } from "./FormControls";
@@ -19,6 +20,12 @@ export default function GoogleMapsEmbedInput({
 
   const applyIframe = (iframeCode: string) => {
     const next = parseGoogleMapsIframe(iframeCode);
+    debugLog("GoogleMapsEmbed", "iframe updated", {
+      isValid: next.isValid,
+      detectedSrc: next.detectedSrc?.slice(0, 80),
+      isEmbedPb: /maps\/embed/i.test(next.detectedSrc) && /!3d/i.test(next.detectedSrc),
+      isLegacyQ: /maps\?q=/i.test(next.detectedSrc),
+    });
     onChange({ iframeCode, detectedSrc: next.detectedSrc, isValid: next.isValid });
   };
 

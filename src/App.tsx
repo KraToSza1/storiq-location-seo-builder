@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { logStorIqDebugBanner } from "./lib/debugLog";
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import LocationWizard from "./pages/LocationWizard";
@@ -8,6 +10,10 @@ import MasterDataPage from "./pages/MasterDataPage";
 import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
+  useEffect(() => {
+    logStorIqDebugBanner();
+  }, []);
+
   return (
     <AppLayout>
       <Routes>

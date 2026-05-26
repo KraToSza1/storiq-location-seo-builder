@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, Download, XCircle } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { debugLog } from "../lib/debugLog";
 import CopyButton from "./CopyButton";
 import ExportOptionCard, { type ExportOptionGuide } from "./ExportOptionCard";
 import LaunchReadinessPanel from "./LaunchReadinessPanel";
@@ -108,6 +109,15 @@ export default function ExportPanel({ project }: { project: LocationProject }) {
   const assetBase = resolvePublishAssetBaseUrl(settings);
   const exportChecks = runExportChecks(project, html, images, facilities);
   const canExport = exportChecksPass(exportChecks);
+
+  useEffect(() => {
+    debugLog("ExportPanel", "render", {
+      projectId: project.id,
+      canExport,
+      htmlLength: html.length,
+      htmlStartsWithBlocked: html.trimStart().startsWith("[GENERATION BLOCKED]"),
+    });
+  }, [project.id, canExport, html.length]);
   const filename = buildExportFilename(project);
   const json = JSON.stringify(project, null, 2);
   const report = auditReport(project);

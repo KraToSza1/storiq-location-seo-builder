@@ -21,6 +21,8 @@ import { loadDashboardSession, saveDashboardSession } from "../lib/dashboardSess
 import { applyLocalReferences, mergeLocalReferences } from "../lib/localContextUtils";
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { buildPrimaryKeyword } from "../lib/projectDefaults";
+import { debugLog, debugWarn } from "../lib/debugLog";
+import { isGenerationBlockedOutput } from "../lib/myGarageGenerationSpec";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject, ProjectStatus } from "../types/storiq";
 
@@ -63,6 +65,21 @@ export default function LocationWorkspace() {
     return "Brief";
   });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!project) {
+      debugWarn("LocationWorkspace", "project not found", { id, projectCount: projects.length });
+      return;
+    }
+    debugLog("LocationWorkspace", "loaded project", {
+      id: project.id,
+      tab: activeTab,
+      status: project.status,
+      htmlLength: project.generated.html.length,
+      generationBlocked: isGenerationBlockedOutput(project.generated.html),
+      draftFaqCount: project.generated.draftFaqs.length,
+    });
+  }, [project?.id, project?.generated.html, project?.status, activeTab, id, projects.length]);
 
   useEffect(() => {
     if (!project || project.id !== id) {
