@@ -33,6 +33,7 @@ import { cloneProject, defaultSettings, mergeWithProjectDefaults } from "../lib/
 import { runSEOAudit } from "../lib/seoAudit";
 import { renderFaqJsonLd, renderStoragelyHtml } from "../lib/templateRenderer";
 import { debugLog, debugWarn } from "../lib/debugLog";
+import { debugFlow, logStorageWrite } from "../lib/debugUi";
 import { isGenerationBlockedOutput } from "../lib/myGarageGenerationSpec";
 import { getProjectValidation } from "../lib/validators";
 import type { AppSettings, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -274,22 +275,38 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    logStorageWrite(PROJECTS_KEY, { count: projects.length });
   }, [projects]);
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    logStorageWrite(SETTINGS_KEY);
   }, [settings]);
 
   useEffect(() => {
     localStorage.setItem(FACILITIES_KEY, JSON.stringify(facilities));
+    logStorageWrite(FACILITIES_KEY, { count: facilities.length });
   }, [facilities]);
 
   useEffect(() => {
     localStorage.setItem(IMAGES_KEY, JSON.stringify(images));
+    logStorageWrite(IMAGES_KEY, { count: images.length });
   }, [images]);
+
+  useEffect(() => {
+    debugFlow("hydrate", "ProjectsProvider ready", {
+      projects: projects.length,
+      facilities: facilities.length,
+      images: images.length,
+    });
+  }, []);
 
   const refreshProjects = useCallback(
     (nextFacilities: NearbyFacility[], nextImages: StorageImage[]) => {
+      debugLog("ProjectsContext", "refreshProjects", {
+        facilities: nextFacilities.length,
+        images: nextImages.length,
+      });
       setProjects((current) => current.map((project) => prepareProject(project, nextFacilities, nextImages, settings)));
     },
     [settings],
@@ -297,6 +314,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const addProject = useCallback(
     (project: LocationProject) => {
+      debugFlow("project", "addProject", { id: project.id, facility: project.locationIdentity.facilityName });
       const prepared = prepareProject(
         {
           ...project,
@@ -314,6 +332,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const updateProject = useCallback(
     (id: string, updater: (project: LocationProject) => LocationProject) => {
+      debugLog("ProjectsContext", "updateProject", { id });
       setProjects((current) =>
         current.map((project) => {
           if (project.id !== id) {
@@ -336,13 +355,16 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteProject = useCallback((id: string) => {
+    debugFlow("project", "deleteProject", { id });
     setProjects((current) => current.filter((project) => project.id !== id));
   }, []);
 
   const duplicateProject = useCallback(
     (id: string) => {
+      debugFlow("project", "duplicateProject", { id });
       const found = projects.find((project) => project.id === id);
       if (!found) {
+        debugWarn("ProjectsContext", "duplicateProject: not found", { id });
         return undefined;
       }
 
@@ -355,6 +377,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const importProjects = useCallback(
     (json: string) => {
+      debugFlow("project", "importProjects", { jsonLength: json.length });
       try {
         const parsed = JSON.parse(json) as Partial<LocationProject> | Partial<LocationProject>[];
         const incoming = Array.isArray(parsed) ? parsed : [parsed];
@@ -362,8 +385,10 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
           prepareProject(mergeWithProjectDefaults(project), facilities, images, settings),
         );
         setProjects((current) => [...prepared, ...current]);
+        debugLog("ProjectsContext", "importProjects done", { imported: prepared.length });
         return { imported: prepared.length };
       } catch (error) {
+        debugWarn("ProjectsContext", "importProjects failed", error);
         return {
           imported: 0,
           error: error instanceof Error ? error.message : "Unable to parse JSON backup.",
@@ -374,11 +399,16 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateSettings = useCallback((nextSettings: AppSettings) => {
+    debugLog("ProjectsContext", "updateSettings", {
+      mediaAssetBaseUrl: nextSettings.mediaAssetBaseUrl?.slice(0, 60),
+      keywordPattern: nextSettings.defaultKeywordPattern,
+    });
     setSettings(nextSettings);
   }, []);
 
   const importFacilitiesCsv = useCallback(
     (csv: string) => {
+      debugLog("ProjectsContext", "importFacilitiesCsv", { chars: csv.length });
       const parsed = parseFacilitiesCsv(csv);
       if (parsed.facilities.length > 0) {
         setFacilities((current) => {
@@ -395,6 +425,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const saveFacility = useCallback(
     (facility: NearbyFacility) => {
+      debugLog("ProjectsContext", "saveFacility", { id: facility.id, facilityName: facility.facilityName });
       let error: string | undefined;
       setFacilities((current) => {
         const result = upsertFacility(current, facility);
@@ -411,6 +442,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const deleteFacility = useCallback(
     (id: string) => {
+      debugLog("ProjectsContext", "deleteFacility", { id });
       setFacilities((current) => {
         const nextFacilities = current.filter((facility) => facility.id !== id);
         setProjects((projectsCurrent) =>
@@ -433,6 +465,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const resetFacilities = useCallback(() => {
+    debugFlow("masterData", "resetFacilities");
     setFacilities(defaultFacilities);
     refreshProjects(defaultFacilities, images);
   }, [images, refreshProjects]);
@@ -441,6 +474,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const importImagesCsv = useCallback(
     (csv: string) => {
+      debugLog("ProjectsContext", "importImagesCsv", { chars: csv.length });
       const parsed = parseImagesCsv(csv);
       if (parsed.images.length > 0) {
         setImages((current) => {
@@ -456,6 +490,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const importImagesMarkdown = useCallback(
     (markdown: string) => {
+      debugLog("ProjectsContext", "importImagesMarkdown", { chars: markdown.length });
       const parsed = parseImagesMarkdown(markdown);
       if (parsed.images.length > 0) {
         setImages((current) => {
@@ -471,6 +506,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const saveImage = useCallback(
     (image: StorageImage) => {
+      debugLog("ProjectsContext", "saveImage", { id: image.id, category: image.category });
       setImages((current) => {
         const next = upsertImage(current, image);
         refreshProjects(facilities, next);
@@ -482,6 +518,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   const deleteImage = useCallback(
     (id: string) => {
+      debugLog("ProjectsContext", "deleteImage", { id });
       setImages((current) => {
         const next = current.filter((image) => image.id !== id);
         setProjects((projectsCurrent) =>
@@ -505,6 +542,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const resetImages = useCallback(() => {
+    debugFlow("masterData", "resetImages");
     setImages(defaultImages);
     refreshProjects(facilities, defaultImages);
   }, [facilities, refreshProjects]);

@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Download, XCircle } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { debugLog } from "../lib/debugLog";
+import { debugFlow } from "../lib/debugUi";
 import CopyButton from "./CopyButton";
 import ExportOptionCard, { type ExportOptionGuide } from "./ExportOptionCard";
 import LaunchReadinessPanel from "./LaunchReadinessPanel";
@@ -12,6 +13,7 @@ import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject } from "../types/storiq";
 
 const downloadText = (filename: string, content: string, type: string) => {
+  debugFlow("export", `download ${filename}`, { type, bytes: content.length });
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

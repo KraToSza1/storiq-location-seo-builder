@@ -1,4 +1,5 @@
 import { Monitor, Moon, Palette, Sun } from "lucide-react";
+import { debugLog } from "../lib/debugLog";
 import { useTheme, type ThemeMode } from "../context/ThemeContext";
 
 const options: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -20,7 +21,10 @@ export default function ThemeToggle() {
           aria-pressed={mode === optionMode}
           aria-label={label}
           title={label}
-          onClick={() => setMode(optionMode)}
+          onClick={() => {
+            debugLog("ThemeToggle", "theme changed", { mode: optionMode });
+            setMode(optionMode);
+          }}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
         </button>

@@ -22,6 +22,7 @@ import { applyLocalReferences, mergeLocalReferences } from "../lib/localContextU
 import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { buildPrimaryKeyword } from "../lib/projectDefaults";
 import { debugLog, debugWarn } from "../lib/debugLog";
+import { debugFlow } from "../lib/debugUi";
 import { isGenerationBlockedOutput } from "../lib/myGarageGenerationSpec";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject, ProjectStatus } from "../types/storiq";
@@ -98,6 +99,7 @@ export default function LocationWorkspace() {
   }, [id, project?.id]);
 
   const selectTab = (tab: Tab) => {
+    debugFlow("workspace", `tab → ${tab}`, { projectId: project?.id });
     setActiveTab(tab);
     if (project) {
       saveDashboardSession({
@@ -121,7 +123,10 @@ export default function LocationWorkspace() {
     );
   }
 
-  const save = (updater: (current: LocationProject) => LocationProject) => updateProject(project.id, updater);
+  const save = (updater: (current: LocationProject) => LocationProject) => {
+    debugLog("LocationWorkspace", "save field change", { projectId: project.id, tab: activeTab });
+    updateProject(project.id, updater);
+  };
 
   const updateIdentity = (field: keyof LocationProject["locationIdentity"], value: string) => {
     save((current) => {

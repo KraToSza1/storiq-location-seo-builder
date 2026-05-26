@@ -34,6 +34,8 @@ export interface LocationProject {
     iframeCode: string;
     detectedSrc: string;
     isValid: boolean;
+    /** roadmap | satellite (aerial) | hybrid (satellite + labels) */
+    mapType?: "roadmap" | "satellite" | "hybrid";
   };
   localContext: {
     landmarks: string[];

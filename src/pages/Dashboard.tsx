@@ -16,6 +16,8 @@ import {
   getProjectQueueStatus,
   type ProjectQueueFilter,
 } from "../lib/projectQueue";
+import { debugLog } from "../lib/debugLog";
+import { debugFlow } from "../lib/debugUi";
 import { useProjects } from "../state/ProjectsContext";
 
 const formatDate = (iso: string): string =>
@@ -50,6 +52,7 @@ export default function Dashboard() {
   }, [location.pathname]);
 
   useEffect(() => {
+    debugLog("Dashboard", "queue filter", { queueFilter });
     const next = saveDashboardSession({ queueFilter });
     setSession(next);
   }, [queueFilter]);
@@ -73,6 +76,7 @@ export default function Dashboard() {
   };
 
   const downloadBackup = () => {
+    debugFlow("Dashboard", "export backup", { projectCount: projects.length });
     const blob = new Blob([JSON.stringify(projects, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -84,6 +88,7 @@ export default function Dashboard() {
 
   const handleImport = (file: File | undefined) => {
     if (!file) return;
+    debugFlow("Dashboard", "import JSON file", { name: file.name, size: file.size });
     const reader = new FileReader();
     reader.onload = () => {
       const result = importProjects(String(reader.result ?? ""));
@@ -299,6 +304,7 @@ export default function Dashboard() {
                         <button
                           type="button"
                           onClick={() => {
+                            debugFlow("Dashboard", "duplicate project", { id: project.id });
                             const copy = duplicateProject(project.id);
                             if (copy) navigate(`/locations/${copy.id}`);
                           }}
@@ -308,6 +314,7 @@ export default function Dashboard() {
                           Duplicate
                         </button>
                         <button type="button" onClick={() => {
+                            debugFlow("Dashboard", "delete project", { id: project.id });
                             deleteProject(project.id);
                             if (session.lastProjectId === project.id) {
                               setSession(saveDashboardSession({ lastProjectId: null, lastWorkspaceTab: null }));

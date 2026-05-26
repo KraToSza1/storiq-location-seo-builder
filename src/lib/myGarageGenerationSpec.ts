@@ -1,4 +1,5 @@
 import type { ValidationIssue } from "../types/storiq";
+import { applyMapDisplayType, resolveMapDisplayType, type MapDisplayType } from "./googleMapsEmbed";
 
 /** Limits from docs/system-prompt-v2.md */
 export const SECTION1_AMENITY_MIN = 8;
@@ -136,7 +137,7 @@ export const formatFacilityNameWithMark = (facilityName: string): string => {
 };
 
 /** Section 7 — clean Google Maps iframe per system prompt Section 6. */
-export const sanitizeGoogleMapsIframe = (iframeCode: string, city: string, state: string): string => {
+export const sanitizeGoogleMapsIframe = (iframeCode: string, city: string, state: string, mapType?: MapDisplayType): string => {
   const trimmed = iframeCode.trim();
   if (!trimmed) {
     return `<p style="padding:2rem;text-align:center;color:#555;">Add a Google Maps embed in Step 7 before exporting.</p>`;
@@ -168,6 +169,12 @@ export const sanitizeGoogleMapsIframe = (iframeCode: string, city: string, state
 
   if (!/\sallowfullscreen/i.test(tag)) {
     tag = tag.replace(/<iframe/i, "<iframe allowfullscreen");
+  }
+
+  const srcMatch = tag.match(/\ssrc=(["'])([^"']+)\1/i);
+  if (srcMatch) {
+    const styledSrc = applyMapDisplayType(srcMatch[2], resolveMapDisplayType(mapType));
+    tag = tag.replace(srcMatch[0], ` src=${srcMatch[1]}${styledSrc}${srcMatch[1]}`);
   }
 
   return tag;

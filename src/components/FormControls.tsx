@@ -1,4 +1,5 @@
 import { listFromText, listToText } from "../lib/contentExtraction";
+import { logInputChange } from "../lib/debugUi";
 
 interface BaseFieldProps {
   label: string;
@@ -16,7 +17,16 @@ export function TextInput({ label, value, onChange, placeholder, required, helpT
         {label}
         {required ? <span className="storiq-required">*</span> : null}
       </span>
-      <input className="storiq-input" value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <input
+        className="storiq-input"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => {
+          const next = event.target.value;
+          logInputChange(label, next);
+          onChange(next);
+        }}
+      />
       {helpText ? <span className="storiq-help">{helpText}</span> : null}
     </label>
   );
@@ -33,7 +43,11 @@ export function TextArea({ label, value, onChange, placeholder, required, helpTe
         className="storiq-textarea"
         value={value}
         placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          const next = event.target.value;
+          logInputChange(label, next);
+          onChange(next);
+        }}
       />
       {helpText ? <span className="storiq-help">{helpText}</span> : null}
     </label>
@@ -61,7 +75,11 @@ export function ListTextarea({
         style={{ minHeight: "7rem" }}
         value={listToText(value)}
         placeholder={placeholder}
-        onChange={(event) => onChange(listFromText(event.target.value))}
+        onChange={(event) => {
+          const lines = listFromText(event.target.value);
+          logInputChange(label, lines);
+          onChange(lines);
+        }}
       />
       {helpText ? <span className="storiq-help">{helpText}</span> : null}
     </label>

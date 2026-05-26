@@ -19,6 +19,8 @@ import {
   suggestNearbyFacilityIds,
   suggestNearbyFacilityNames,
 } from "../lib/nearbySuggestions";
+import { debugLog } from "../lib/debugLog";
+import { logInputChange } from "../lib/debugUi";
 import type { LocationProject, NearbyFacility } from "../types/storiq";
 
 export default function NearbyLocationSelector({
@@ -60,7 +62,9 @@ export default function NearbyLocationSelector({
   const toggle = (id: string) => {
     setSuggestMessage("");
     if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter((selected) => selected !== id));
+      const next = selectedIds.filter((selected) => selected !== id);
+      debugLog("NearbyLocationSelector", "deselected", { id, count: next.length });
+      onChange(next);
       return;
     }
     if (!canSelectMoreNearby(selectedIds, project, facilities)) {
@@ -70,10 +74,13 @@ export default function NearbyLocationSelector({
     if (!facility || !canSelectNearbyFacility(project, facility)) {
       return;
     }
-    onChange([...selectedIds, id]);
+    const next = [...selectedIds, id];
+    debugLog("NearbyLocationSelector", "selected", { id, count: next.length });
+    onChange(next);
   };
 
   const applySuggestions = () => {
+    debugLog("NearbyLocationSelector", "applySuggestions");
     if (!originReady) {
       setSuggestMessage("Add your Storagely page URL in Step 1 first — nearby picks are based on that location.");
       return;
@@ -89,6 +96,7 @@ export default function NearbyLocationSelector({
   };
 
   const clearSelection = () => {
+    debugLog("NearbyLocationSelector", "clearSelection");
     onChange([]);
     setSuggestMessage(
       `Selection cleared. Pick ${formatNearbySelectionRequirement(selectionLimits)} within ${NEARBY_PROXIMITY_MAX_MILES} mi, or use Suggest nearest.`,
@@ -188,7 +196,11 @@ export default function NearbyLocationSelector({
             className="storiq-input"
             style={{ paddingLeft: "2.5rem" }}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              const next = event.target.value;
+              logInputChange("Nearby search", next);
+              setQuery(next);
+            }}
             placeholder="Search by facility name, city, state, or address"
           />
         </div>

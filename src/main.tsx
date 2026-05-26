@@ -4,7 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 import { ThemeProvider } from "./context/ThemeContext";
+import { logStorIqDebugBanner } from "./lib/debugLog";
 import { ProjectsProvider } from "./state/ProjectsContext";
+
+logStorIqDebugBanner();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

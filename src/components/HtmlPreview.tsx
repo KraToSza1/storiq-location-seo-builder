@@ -1,6 +1,11 @@
+import { useEffect } from "react";
+import { debugLog } from "../lib/debugLog";
 import CopyButton from "./CopyButton";
 
 export default function HtmlPreview({ html }: { html: string }) {
+  useEffect(() => {
+    debugLog("HtmlPreview", "preview mounted", { htmlLength: html.length, hasMapIframe: /<iframe[^>]+google\.com\/maps/i.test(html) });
+  }, [html]);
   return (
     <div className="storiq-stack">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -13,7 +18,7 @@ export default function HtmlPreview({ html }: { html: string }) {
       <iframe
         title="Storagely HTML preview"
         srcDoc={html}
-        sandbox=""
+        sandbox="allow-scripts allow-same-origin allow-popups"
         className="storiq-card"
         style={{ height: "620px", width: "100%", background: "var(--storiq-surface)" }}
       />

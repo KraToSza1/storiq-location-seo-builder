@@ -1,7 +1,14 @@
 import { MapPin, Sparkles } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { debugLog } from "../lib/debugLog";
-import { buildGoogleMapsFromProject, getMapPreviewSrc } from "../lib/googleMapsEmbed";
+import { debugFlow } from "../lib/debugUi";
+import {
+  applyMapDisplayTypeToIframeCode,
+  buildGoogleMapsFromProject,
+  getMapPreviewSrc,
+  resolveMapDisplayType,
+  type MapDisplayType,
+} from "../lib/googleMapsEmbed";
 import { parseGoogleMapsIframe } from "../lib/validators";
 import { TextArea } from "./FormControls";
 import type { LocationProject } from "../types/storiq";
@@ -18,26 +25,49 @@ export default function GoogleMapsEmbedInput({
   const previewSrc = useMemo(() => getMapPreviewSrc(project, project.googleMaps.iframeCode), [project, project.googleMaps.iframeCode]);
   const previewTitle = `Map to ${project.locationIdentity.facilityName || "facility"}`;
 
-  const applyIframe = (iframeCode: string) => {
-    const next = parseGoogleMapsIframe(iframeCode);
+  const mapType = resolveMapDisplayType(project.googleMaps.mapType);
+
+  const applyIframe = (iframeCode: string, nextMapType = mapType) => {
+    const styled = applyMapDisplayTypeToIframeCode(iframeCode, nextMapType);
+    const next = parseGoogleMapsIframe(styled);
     debugLog("GoogleMapsEmbed", "iframe updated", {
       isValid: next.isValid,
+      mapType: nextMapType,
       detectedSrc: next.detectedSrc?.slice(0, 80),
       isEmbedPb: /maps\/embed/i.test(next.detectedSrc) && /!3d/i.test(next.detectedSrc),
       isLegacyQ: /maps\?q=/i.test(next.detectedSrc),
     });
-    onChange({ iframeCode, detectedSrc: next.detectedSrc, isValid: next.isValid });
+    onChange({
+      iframeCode: styled,
+      detectedSrc: next.detectedSrc,
+      isValid: next.isValid,
+      mapType: nextMapType,
+    });
+  };
+
+  const setMapType = (nextMapType: MapDisplayType) => {
+    debugFlow("GoogleMapsEmbed", `mapType → ${nextMapType}`);
+    if (project.googleMaps.iframeCode.trim()) {
+      applyIframe(project.googleMaps.iframeCode, nextMapType);
+      return;
+    }
+    onChange({ ...project.googleMaps, mapType: nextMapType });
   };
 
   const generateFromAddress = () => {
     if (!suggested.query) return;
-    applyIframe(suggested.iframeCode);
+    applyIframe(suggested.iframeCode, mapType);
   };
 
   useEffect(() => {
     if (!project.googleMaps.iframeCode.trim() && suggested.isValid && suggested.iframeCode) {
       const next = parseGoogleMapsIframe(suggested.iframeCode);
-      onChange({ iframeCode: suggested.iframeCode, detectedSrc: next.detectedSrc, isValid: next.isValid });
+      onChange({
+        iframeCode: suggested.iframeCode,
+        detectedSrc: next.detectedSrc,
+        isValid: next.isValid,
+        mapType,
+      });
     }
   }, [suggested.query, suggested.iframeCode, suggested.isValid, project.googleMaps.iframeCode, onChange]);
 
@@ -64,6 +94,24 @@ export default function GoogleMapsEmbedInput({
           <Sparkles className="h-4 w-4" aria-hidden="true" />
           Regenerate from address
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="storiq-field flex-1 min-w-[12rem]">
+          <span className="storiq-label">Map style</span>
+          <select
+            className="storiq-input mt-1 w-full"
+            value={mapType}
+            onChange={(e) => setMapType(e.target.value as MapDisplayType)}
+          >
+            <option value="satellite">Satellite (aerial)</option>
+            <option value="hybrid">Hybrid (satellite + labels)</option>
+            <option value="roadmap">Road map</option>
+          </select>
+        </label>
+        <p className="storiq-help flex-1 pb-1" style={{ margin: 0 }}>
+          For export quality, switch Google Maps to your preferred view, then Share → Embed a map. The dropdown also adjusts generated and pasted embeds when possible.
+        </p>
       </div>
 
       <section className="storiq-map-preview-wrap" aria-label="Google Maps preview">

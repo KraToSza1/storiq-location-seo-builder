@@ -1,6 +1,7 @@
 import { AlertTriangle, Check, Link as LinkIcon, MinusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isLinkableStorageType } from "../lib/imageLibrary";
+import { debugLog } from "../lib/debugLog";
 import { useProjects } from "../state/ProjectsContext";
 
 export default function StorageTypeSelector({
@@ -14,7 +15,9 @@ export default function StorageTypeSelector({
   const storageImages = images.filter((image) => image.type === "storage_type");
 
   const toggle = (id: string) => {
-    onChange(selectedIds.includes(id) ? selectedIds.filter((selected) => selected !== id) : [...selectedIds, id]);
+    const next = selectedIds.includes(id) ? selectedIds.filter((selected) => selected !== id) : [...selectedIds, id];
+    debugLog("StorageTypeSelector", selectedIds.includes(id) ? "deselected" : "selected", { id, count: next.length });
+    onChange(next);
   };
 
   if (storageImages.length === 0) {

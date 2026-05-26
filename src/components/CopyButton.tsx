@@ -1,5 +1,6 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { logCopy } from "../lib/debugUi";
 
 interface CopyButtonProps {
   value: string;
@@ -13,6 +14,7 @@ export default function CopyButton({ value, label, className = "", variant = "pr
 
   const copy = async () => {
     await navigator.clipboard.writeText(value);
+    logCopy(label, value);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   };

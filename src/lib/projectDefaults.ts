@@ -79,6 +79,7 @@ export const createLocationProject = (): LocationProject => {
       iframeCode: "",
       detectedSrc: "",
       isValid: false,
+      mapType: "satellite",
     },
     localContext: {
       landmarks: [],

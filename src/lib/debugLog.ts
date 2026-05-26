@@ -55,9 +55,12 @@ export const debugTable = (scope: string, rows: Record<string, unknown>[]): void
 
 export const logStorIqDebugBanner = (): void => {
   if (!isStorIqDebugEnabled()) {
+    console.info(`${PREFIX} Debug logging OFF. Dev: auto-on. Production: localStorage.setItem("storiq-debug","1") then refresh.`);
     return;
   }
-  console.info(
-    `${PREFIX} Debug logging ON (dev mode). Filter console by "StorIQ". Production: localStorage.setItem("storiq-debug","1") then refresh.`,
-  );
+  console.groupCollapsed(`${PREFIX} Debug logging ON — full app trace`);
+  console.info("Filter DevTools console by: StorIQ");
+  console.info("Scopes: UI:input | UI:paste | UI:copy | UI:button | FLOW# | prepareProject | validationGate | exportChecks");
+  console.info("Production: localStorage.setItem('storiq-debug','1'); location.reload();");
+  console.groupEnd();
 };

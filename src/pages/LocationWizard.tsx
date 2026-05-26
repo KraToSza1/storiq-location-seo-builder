@@ -18,6 +18,8 @@ import { normalizePrimaryKeyword } from "../lib/keywordUtils";
 import { enhanceProjectFromLibraries, matchNearbyIdsFromContent } from "../lib/projectEnhancements";
 import { buildPrimaryKeyword, createLocationProject } from "../lib/projectDefaults";
 import { getProjectValidation } from "../lib/validators";
+import { debugLog } from "../lib/debugLog";
+import { debugFlow } from "../lib/debugUi";
 import { useProjects } from "../state/ProjectsContext";
 import type { LocationProject } from "../types/storiq";
 
@@ -101,7 +103,17 @@ export default function LocationWizard() {
     }
   }, [step, images, project.generated.draftFaqs.length]);
 
+  const goToStep = (index: number) => {
+    debugFlow("wizard", `step → ${stepLabels[index] ?? index}`, { index, projectId: project.id });
+    setStep(index);
+  };
+
   const saveDraft = () => {
+    debugFlow("wizard", "saveDraft / create workspace", {
+      step: stepLabels[step],
+      facility: project.locationIdentity.facilityName,
+      city: project.locationIdentity.city,
+    });
     const withFaqs =
       project.generated.draftFaqs.length > 0
         ? project
@@ -113,6 +125,7 @@ export default function LocationWizard() {
             },
           };
     const saved = addProject(enhanceProjectFromLibraries(withFaqs, facilities, images));
+    debugLog("LocationWizard", "project saved", { id: saved.id, status: saved.status });
     saveDashboardSession({
       lastProjectId: saved.id,
       lastWorkspaceTab: "Brief",
@@ -352,7 +365,7 @@ export default function LocationWizard() {
             <button
               key={label}
               type="button"
-              onClick={() => setStep(index)}
+              onClick={() => goToStep(index)}
               className={`storiq-wizard-step ${
                 step === index ? "storiq-wizard-step--current" : index < step ? "storiq-wizard-step--done" : "storiq-wizard-step--pending"
               }`}
@@ -368,7 +381,7 @@ export default function LocationWizard() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setStep((current) => Math.max(0, current - 1))}
+          onClick={() => goToStep(Math.max(0, step - 1))}
           disabled={step === 0}
           className="storiq-btn storiq-btn-secondary"
         >
@@ -381,7 +394,7 @@ export default function LocationWizard() {
             Save Draft
           </button>
           {step < STEP_COUNT - 1 ? (
-            <button type="button" onClick={() => setStep((current) => Math.min(STEP_COUNT - 1, current + 1))} className="storiq-btn storiq-btn-primary">
+            <button type="button" onClick={() => goToStep(Math.min(STEP_COUNT - 1, step + 1))} className="storiq-btn storiq-btn-primary">
               Next
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>

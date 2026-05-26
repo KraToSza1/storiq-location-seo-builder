@@ -342,7 +342,7 @@ ${MASTER_TEMPLATE_CSS}
   <section class="facility-section facility-section--brand">
     <div class="map-section">
       <div class="map-section__map">
-        ${sanitizeGoogleMapsIframe(project.googleMaps.iframeCode, city, state)}
+        ${sanitizeGoogleMapsIframe(project.googleMaps.iframeCode, city, state, project.googleMaps.mapType)}
       </div>
       <div class="map-section__info">
         <h2>${escapeHtml(headings.map)}</h2>
