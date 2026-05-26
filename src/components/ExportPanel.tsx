@@ -141,9 +141,11 @@ export default function ExportPanel({ project }: { project: LocationProject }) {
       <LaunchReadinessPanel project={project} compact />
 
       <section className="storiq-card storiq-card--padding">
-        <h2 className="storiq-section-title">Pre-Export Checks</h2>
+        <h2 className="storiq-section-title">Pre-Export Validation Gate</h2>
         <p className="storiq-section-subtitle">
-          {canExport ? "All critical export checks passed." : "Resolve failed checks before publishing to Storagely."}
+          {canExport
+            ? "All blocking checks passed (validation-gate-spec)."
+            : "Resolve failed gate checks before publishing to Storagely."}
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {exportChecks.map((check) => {

@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "audit:demo": "npx tsx scripts/demo-readiness-audit.ts"
+    "audit:demo": "npx tsx scripts/demo-readiness-audit.ts",
+    "audit:golden": "npx tsx scripts/golden-html-audit.ts",
+    "sync:master-css": "node scripts/sync-master-template-css.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

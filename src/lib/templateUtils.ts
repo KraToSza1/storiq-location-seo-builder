@@ -21,8 +21,29 @@ export const slugify = (value: string): string =>
 export const cityState = (project: { locationIdentity: { city: string; state: string } }): string =>
   [project.locationIdentity.city, project.locationIdentity.state].filter(Boolean).join(", ");
 
-export const formatTelHref = (phone: string): string => {
+export const parsePhoneDigits = (phone: string): string => {
   const digits = phone.replace(/\D/g, "");
-  if (!digits) return "#";
-  return digits.startsWith("1") ? `tel:+${digits}` : `tel:+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return digits.slice(1);
+  }
+  if (digits.length >= 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+};
+
+export const formatPhoneDisplay = (phone: string): string => {
+  const digits = parsePhoneDigits(phone);
+  if (digits.length !== 10) {
+    return phone.trim();
+  }
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
+
+export const formatTelHref = (phone: string): string => {
+  const digits = parsePhoneDigits(phone);
+  if (digits.length !== 10) {
+    return "#";
+  }
+  return `tel:+1${digits}`;
 };

@@ -1,36 +1,7 @@
-import {
-  auditFacilityHeadings,
-  FACILITY_WIREframe_FAQ_COUNT,
-  FACILITY_WIREframe_SECTION_SIGNALS,
-  faqTextIncludesKeyword,
-  resolveFaqKeyword,
-} from "./facilityWireframe";
-import { isGenerationBlockedOutput } from "./myGarageGenerationSpec";
-import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
-import { mergeLocalReferences } from "./localContextUtils";
-import { buildFaqItems, renderFaqJsonLd } from "./templateFaq";
-import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
-import { getStorageImageById } from "./imageLibrary";
 import { formatNearbySelectionRequirement, getNearbySelectionLimits, isNearbySelectionCountValid, NEARBY_SELECTION_RANGE_LABEL } from "./nearbySuggestions";
-
-const makeCheck = (id: string, label: string, status: ExportCheck["status"], message: string): ExportCheck => ({
-  id,
-  label,
-  status,
-  message,
-});
-
-const countMatches = (value: string, pattern: RegExp): number => value.match(pattern)?.length ?? 0;
-
-const visibleFaqText = (html: string): { questions: string[]; answers: string[] } => {
-  const questions = [...html.matchAll(/<summary><h3>([\s\S]*?)<\/h3><\/summary>/gi)].map((match) =>
-    match[1].replace(/<[^>]*>/g, "").trim(),
-  );
-  const answers = [...html.matchAll(/<summary><h3>[\s\S]*?<\/h3><\/summary>\s*<p>([\s\S]*?)<\/p>/gi)].map((match) =>
-    match[1].replace(/<[^>]*>/g, "").trim(),
-  );
-  return { questions, answers };
-};
+import { makeExportCheck } from "./staticHtmlChecks";
+import { runValidationGate, validationGatePass, gateChecksToExportChecks } from "./validationGate";
+import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 export const buildExportFilename = (project: LocationProject): string => {
   const slug = (value: string): string =>
@@ -48,32 +19,14 @@ export const runExportChecks = (
   images: StorageImage[],
   facilities: NearbyFacility[],
 ): ExportCheck[] => {
-  const checks: ExportCheck[] = [];
-
-  if (isGenerationBlockedOutput(html)) {
-    return [
-      makeCheck(
-        "generation-blocked",
-        "Generation blocked",
-        "fail",
-        "Required inputs missing — complete the location wizard before exporting HTML.",
-      ),
-    ];
-  }
-
-  const map = parseGoogleMapsIframe(project.googleMaps.iframeCode);
-  const selectedImages = project.selectedStorageImages
-    .map((id) => getStorageImageById(images, id))
-    .filter((image): image is StorageImage => Boolean(image));
-  const selectedFacilities = project.selectedNearbyLocations
-    .map((id) => facilities.find((f) => f.id === id))
-    .filter((f): f is NearbyFacility => Boolean(f));
+  const gateChecks = runValidationGate({ html, project, images, facilities });
+  const checks = gateChecksToExportChecks(gateChecks);
 
   const nearbyCount = project.selectedNearbyLocations.length;
   const nearbyLimits = getNearbySelectionLimits(project, facilities);
   const nearbyValid = isNearbySelectionCountValid(nearbyCount, project, facilities);
   checks.push(
-    makeCheck(
+    makeExportCheck(
       "nearby-count",
       formatNearbySelectionRequirement(nearbyLimits),
       nearbyValid ? "pass" : "fail",
@@ -83,263 +36,14 @@ export const runExportChecks = (
     ),
   );
 
-  checks.push(
-    makeCheck(
-      "placeholders",
-      "No unresolved placeholders",
-      hasUnresolvedPlaceholderInHtml(html) ? "fail" : "pass",
-      hasUnresolvedPlaceholderInHtml(html)
-        ? "Unresolved tokens detected ([City], TODO, REPLACE_WITH_URL, undefined, null)."
-        : "No placeholder tokens found.",
-    ),
-  );
-
-  const h1Count = countMatches(html, /<h1[\s>]/gi);
-  checks.push(
-    makeCheck(
-      "no-h1",
-      "No H1 in template",
-      h1Count === 0 ? "pass" : "fail",
-      h1Count === 0 ? "No H1 in template (Storagely injects page H1)." : `Found ${h1Count} H1 tag(s) — remove from template.`,
-    ),
-  );
-
-  const mainCount = countMatches(html, /<main\s+id=["']facility-template["']/gi);
-  checks.push(
-    makeCheck(
-      "main-wrapper",
-      "Exactly one main#facility-template",
-      mainCount === 1 ? "pass" : "fail",
-      `Found ${mainCount} main wrapper(s). Expected exactly 1.`,
-    ),
-  );
-
-  const sections = [...FACILITY_WIREframe_SECTION_SIGNALS];
-  const missing = sections.filter((s) => !html.includes(s));
-  checks.push(
-    makeCheck(
-      "seven-sections",
-      "7 wireframe sections",
-      missing.length === 0 ? "pass" : "fail",
-      missing.length === 0 ? "All 7 client wireframe sections present." : `Missing: ${missing.join(", ")}.`,
-    ),
-  );
-
-  const headingAudit = auditFacilityHeadings(html);
-  checks.push(
-    makeCheck(
-      "heading-hierarchy",
-      "H2/H3 wireframe headings",
-      headingAudit.valid ? "pass" : "fail",
-      headingAudit.message,
-    ),
-  );
-
-  try {
-    const faqJsonLd = renderFaqJsonLd(project);
-    const visible = visibleFaqText(html);
-    const schema = JSON.parse(faqJsonLd) as { mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
-    const matches =
-      schema.mainEntity.length === visible.questions.length &&
-      schema.mainEntity.every(
-        (item, i) => item.name === visible.questions[i] && item.acceptedAnswer.text === visible.answers[i],
-      );
-    checks.push(
-      makeCheck(
-        "faq-match",
-        "FAQ text matches JSON-LD",
-        matches ? "pass" : "fail",
-        matches ? "Visible FAQ matches FAQPage schema." : "FAQ visible copy does not match JSON-LD.",
-      ),
-    );
-  } catch {
-    checks.push(makeCheck("faq-match", "FAQ text matches JSON-LD", "fail", "FAQ JSON-LD could not be parsed."));
-  }
-
-  const { city, state } = project.locationIdentity;
-  const place = [city, state].filter(Boolean).join(", ");
-  const faqKeywordLabel = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
-  const faqItems = buildFaqItems(project, images);
-  const faqsWithKeyword = faqItems.filter(
-    (item) =>
-      faqTextIncludesKeyword(item.question, project.seo.primaryKeyword, city, state) ||
-      faqTextIncludesKeyword(item.answer, project.seo.primaryKeyword, city, state),
-  ).length;
-  checks.push(
-    makeCheck(
-      "faq-local-keyword",
-      "FAQs include primary keyword",
-      faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT ? "pass" : "fail",
-      faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT
-        ? `All ${FACILITY_WIREframe_FAQ_COUNT} FAQs include the primary keyword "${faqKeywordLabel}".`
-        : `${faqsWithKeyword}/${FACILITY_WIREframe_FAQ_COUNT} FAQs include the primary keyword.`,
-    ),
-  );
-
-  const legacyNearbyBackground = /--img-loc-|background-image:\s*var\(--img-loc/i.test(html);
-  checks.push(
-    makeCheck(
-      "no-legacy-nearby-bg",
-      "No legacy Section 5 CSS backgrounds",
-      legacyNearbyBackground ? "fail" : "pass",
-      legacyNearbyBackground
-        ? "Found --img-loc-* or CSS background nearby images — use semantic <img class=\"location-card__image\"> per system-prompt-v2."
-        : "No legacy nearby background-image pattern.",
-    ),
-  );
-
-  const nearbyDivRoleImg = countMatches(html, /<div[^>]*class=["'][^"']*location-card__image[^"']*["'][^>]*role=["']img["']/gi);
-  checks.push(
-    makeCheck(
-      "no-nearby-div-role-img",
-      "Nearby cards are not div role=img",
-      nearbyDivRoleImg === 0 ? "pass" : "fail",
-      nearbyDivRoleImg === 0
-        ? "Nearby cards use semantic <img> (not div background placeholders)."
-        : `${nearbyDivRoleImg} nearby card(s) still use <div role=\"img\"> — replace with <img>.`,
-    ),
-  );
-
-  const section1AmenityItems = (html.match(/<!-- SECTION 1[\s\S]*?<ul class="facility-list">([\s\S]*?)<\/ul>/i)?.[1]?.match(/<li>/gi) ?? []).length;
-  checks.push(
-    makeCheck(
-      "section1-amenity-count",
-      "Section 1 has 8–12 amenities",
-      section1AmenityItems >= 8 && section1AmenityItems <= 12
-        ? "pass"
-        : section1AmenityItems === 0
-          ? "fail"
-          : "warning",
-      section1AmenityItems === 0
-        ? "Section 1 amenity list is empty."
-        : `${section1AmenityItems} amenities in Section 1 (spec: 8–12 distinct).`,
-    ),
-  );
-
-  const localRefCount = mergeLocalReferences(project.localContext).length;
-  checks.push(
-    makeCheck(
-      "section4-local-places",
-      "Section 4 local references",
-      localRefCount >= 2 ? "pass" : "warning",
-      localRefCount >= 2
-        ? `${localRefCount} local reference(s) in project — verify 2–3 named places appear in Section 4 within 10 miles.`
-        : "Fewer than 2 local references — Section 4 needs 2–3 verified landmarks (harvest from raw content or add local context).",
-    ),
-  );
-
-  const nearbySemanticImg = countMatches(html, /<img\b[^>]*class=["'][^"']*location-card__image/gi);
-  checks.push(
-    makeCheck(
-      "nearby-semantic-img",
-      "Nearby cards use semantic img",
-      selectedFacilities.length === 0
-        ? "warning"
-        : nearbySemanticImg >= selectedFacilities.length
-          ? "pass"
-          : "fail",
-      selectedFacilities.length === 0
-        ? "No nearby facilities selected."
-        : `${nearbySemanticImg}/${selectedFacilities.length} nearby cards use <img class=\"location-card__image\">.`,
-    ),
-  );
-
-  checks.push(
-    makeCheck(
-      "self-storage-jsonld",
-      "SelfStorage JSON-LD present",
-      html.includes('"@type": "SelfStorage"') ? "pass" : "fail",
-      html.includes('"@type": "SelfStorage"') ? "SelfStorage schema block found." : "SelfStorage JSON-LD is missing.",
-    ),
-  );
-
-  checks.push(
-    makeCheck(
-      "no-meta-description",
-      "No meta description in template",
-      /<meta\s+name=["']description["']/i.test(html) ? "fail" : "pass",
-      /<meta\s+name=["']description["']/i.test(html)
-        ? "Meta description must not be in template output (managed outside generator)."
-        : "No meta description tag in export.",
-    ),
-  );
-
-  const imageTags = countMatches(html, /<img\b/gi);
-  const withAlt = countMatches(html, /<img\b(?=[^>]*\salt=["'][^"']+["'])/gi);
-  checks.push(
-    makeCheck(
-      "image-alt",
-      "All images have alt text",
-      imageTags > 0 && imageTags === withAlt ? "pass" : imageTags === 0 ? "warning" : "fail",
-      `${withAlt}/${imageTags} images include alt attributes.`,
-    ),
-  );
-
-  const lazy = countMatches(html, /<img\b(?=[^>]*\sloading=["']lazy["'])/gi);
-  const async = countMatches(html, /<img\b(?=[^>]*\sdecoding=["']async["'])/gi);
-  const sized = countMatches(html, /<img\b(?=[^>]*\swidth=)(?=[^>]*\sheight=)/gi);
-  checks.push(
-    makeCheck(
-      "image-perf",
-      "Images: lazy, async, width, height",
-      imageTags > 0 && lazy === imageTags && async === imageTags && sized === imageTags ? "pass" : "warning",
-      `${lazy}/${imageTags} lazy, ${async}/${imageTags} async, ${sized}/${imageTags} sized.`,
-    ),
-  );
-
-  selectedImages.forEach((image) => {
-    const place = `${project.locationIdentity.city}, ${project.locationIdentity.state}`.toLowerCase();
-    if (place.replace(/,\s*/g, "").length > 2 && !image.altText.toLowerCase().includes(project.locationIdentity.city.toLowerCase())) {
-      checks.push(
-        makeCheck(
-          `alt-place-${image.id}`,
-          `Alt includes city/state: ${image.category}`,
-          "warning",
-          `Alt text for ${image.category} should include ${project.locationIdentity.city}, ${project.locationIdentity.state}.`,
-        ),
-      );
-    }
-  });
-
-  checks.push(
-    makeCheck(
-      "map-attrs",
-      "Map iframe attributes",
-      map.isValid && map.hasLazyLoading && map.hasTitle && map.hasReferrerPolicy
-        ? "pass"
-        : map.isValid
-          ? "warning"
-          : "fail",
-      map.isValid
-        ? `lazy=${map.hasLazyLoading}, title=${map.hasTitle}, referrerpolicy=${map.hasReferrerPolicy}`
-        : "Valid Google Maps iframe required.",
-    ),
-  );
-
-  selectedFacilities.forEach((facility) => {
-    if (!facility.imageUrl) {
-      checks.push(
-        makeCheck(
-          `nearby-img-${facility.id}`,
-          `Nearby image: ${facility.facilityName}`,
-          "warning",
-          `${facility.facilityName} has no image in the facility library.`,
-        ),
-      );
-    }
-    if (!facility.storagelyUrl) {
-      checks.push(
-        makeCheck(
-          `nearby-url-${facility.id}`,
-          `Nearby URL: ${facility.facilityName}`,
-          "fail",
-          `${facility.facilityName} has no Storagely URL.`,
-        ),
-      );
-    }
-  });
-
   return checks;
 };
 
 export const exportChecksPass = (checks: ExportCheck[]): boolean => !checks.some((c) => c.status === "fail");
+
+export const exportValidationGatePass = (
+  project: LocationProject,
+  html: string,
+  images: StorageImage[],
+  facilities: NearbyFacility[],
+): boolean => validationGatePass(runValidationGate({ html, project, images, facilities }));

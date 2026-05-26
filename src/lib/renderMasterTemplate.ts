@@ -20,7 +20,7 @@ import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
 import { formatValueBullet } from "./valuePropositionCopy";
 import { renderSelfStorageJsonLd } from "./templateJsonLd";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
-import { cityState, escapeHtml, externalLinkAttrs, formatTelHref, safeUrl } from "./templateUtils";
+import { cityState, escapeHtml, externalLinkAttrs, formatPhoneDisplay, formatTelHref, safeUrl } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const publishMediaUrl = (url: string | undefined | null, publishAssetBaseUrl: string): string =>
@@ -113,16 +113,14 @@ const renderNearbyCard = (
   const imageAlt = `Self storage units in ${facility.city}, ${facility.state} near ${place}`;
   const storagelyUrl = resolveCanonicalStoragelyUrl(facility);
   const imageSrc = publishMediaUrl(facility.imageUrl, publishAssetBaseUrl);
-  const imageMarkup = imageSrc
-    ? `<img
+  const imageMarkup = `<img
         class="location-card__image"
         src="${safeUrl(imageSrc)}"
         alt="${escapeHtml(imageAlt)}"
         width="480"
         height="300"
         loading="lazy"
-        decoding="async">`
-    : `<div class="location-card__image" role="img" aria-label="${escapeHtml(imageAlt)}"></div>`;
+        decoding="async">`;
 
   return `
       <article class="location-card">
@@ -211,9 +209,21 @@ export const renderStoragelyHtml = (
     ]);
   }
 
+  const nearbyMissingImages = nearby.filter((facility) => !facility.imageUrl?.trim());
+  if (nearbyMissingImages.length > 0) {
+    return formatGenerationBlocked([
+      {
+        id: "nearby-images",
+        label: "Section 5 nearby images",
+        message: `Missing Image Library URL for: ${nearbyMissingImages.map((f) => f.facilityName).join(", ")}. Section 5 requires semantic <img> tags per master_template.md.`,
+        severity: "required",
+      },
+    ]);
+  }
+
   const nearbyCards = nearby.map((facility) => renderNearbyCard(facility, project, publishAssetBaseUrl)).join("\n");
-  const phone = project.existingContent.phone.trim();
-  const telHref = formatTelHref(phone);
+  const phone = formatPhoneDisplay(project.existingContent.phone.trim());
+  const telHref = formatTelHref(project.existingContent.phone.trim());
 
   const headings = buildFacilityWireframeHeadings(city, state, place);
 
@@ -246,7 +256,7 @@ export const renderStoragelyHtml = (
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-<!-- STORIQ FACILITY TEMPLATE — CSS (see public/templates/final-master-template.md) -->
+<!-- STORIQ FACILITY TEMPLATE — CSS (see public/templates/master_template.md) -->
 <style>
 ${MASTER_TEMPLATE_CSS}
 </style>
