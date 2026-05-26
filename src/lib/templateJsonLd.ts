@@ -38,10 +38,10 @@ const representativeFacilityImage = (
 ): string | undefined => {
   const facilityImageId = project.selectedFacilityLocationImages[0];
   const facilityImage = facilityImageId ? getStorageImageById(images, facilityImageId) : undefined;
-  const storageImage = project.selectedStorageImages[0]
-    ? getStorageImageById(images, project.selectedStorageImages[0])
-    : undefined;
-  const url = facilityImage?.imageUrl || storageImage?.imageUrl;
+  const locationTypeImage = images.find(
+    (img) => img.type === "facility_location" && img.destinationUrl?.trim() === project.locationIdentity.storagelyPageUrl.trim(),
+  );
+  const url = facilityImage?.imageUrl || locationTypeImage?.imageUrl;
   return url ? toAbsoluteMediaUrl(url, publishAssetBaseUrl) : undefined;
 };
 
@@ -55,11 +55,14 @@ export const renderSelfStorageJsonLd = (
   const geo = parseGeoFromMapEmbed(project.googleMaps.iframeCode);
   const phone = e164Phone(project.existingContent.phone);
   const image = representativeFacilityImage(project, images, publishAssetBaseUrl);
-  const nearbyCities = project.selectedNearbyLocations
+  const nearbyPlaces = project.selectedNearbyLocations
     .map((id) => facilities.find((facility) => facility.id === id))
     .filter((facility): facility is NearbyFacility => Boolean(facility))
-    .map((facility) => facility.city)
-    .filter(Boolean);
+    .map((facility) => `${facility.city}, ${facility.state}`.trim());
+
+  const areaServedNames = Array.from(
+    new Set([`${city}, ${state}`.trim(), ...nearbyPlaces].filter((name) => name.length > 3)),
+  );
 
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -74,7 +77,7 @@ export const renderSelfStorageJsonLd = (
       postalCode: zipCode,
       addressCountry: "US",
     },
-    areaServed: [city, ...nearbyCities].filter(Boolean),
+    areaServed: areaServedNames.map((name) => ({ "@type": "City", name })),
   };
 
   if (image) {

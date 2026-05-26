@@ -8,9 +8,20 @@ export const escapeHtml = (value: string): string =>
 
 export const safeUrl = (value: string): string => escapeHtml(value.trim());
 
-/** Extra attributes for external https links in exported Storagely HTML. */
-export const externalLinkAttrs = (url: string): string =>
-  /^https?:\/\//i.test(url.trim()) ? ' target="_blank" rel="noopener noreferrer"' : "";
+const MY_GARAGE_HOST = /^(?:www\.)?mygarageselfstorage\.com$/i;
+
+/** Internal My Garage links stay in the same tab; external links are unchanged (no forced new tab). */
+export const externalLinkAttrs = (url: string): string => {
+  try {
+    const host = new URL(url.trim()).hostname;
+    if (MY_GARAGE_HOST.test(host)) {
+      return "";
+    }
+  } catch {
+    /* relative or invalid — no target */
+  }
+  return "";
+};
 
 export const slugify = (value: string): string =>
   value

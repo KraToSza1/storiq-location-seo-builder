@@ -143,7 +143,7 @@ export const buildCatalogFacilityFromNearbyFilename = (filename: string): Nearby
     zipCode: "",
     storagelyUrl: "",
     imageUrl: nearbyLocationImage(filename),
-    notes: "Listed from nearby-locations image library — add Storagely URL in Master Data",
+    notes: "",
   };
 };
 

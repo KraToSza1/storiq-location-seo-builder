@@ -13,8 +13,10 @@ const PROMO_PATTERNS = [
   /limited[\s-]time\s+offer/gi,
   /move[\s-]in\s+special/gi,
   /promo(?:tion)?\s+code/gi,
-  /discount(?:s)?\s+available/gi,
   /move[\s-]in\s+specials?/gi,
+  /\bweb\s+rate\b/gi,
+  /\bstandard\s+rate\b/gi,
+  /what\s+will\s+fit/gi,
   /\bspecials?\b/gi,
 ];
 
@@ -61,12 +63,27 @@ export const amenitiesForSection1 = (features: string[]): string[] => dedupeAmen
 export const normalizeBrandInText = (text: string): string =>
   text.replace(/My Garage Self Storage(?!®)/gi, "My Garage Self Storage®");
 
+const valueBulletDescriptionKey = (bullet: string): string => {
+  const colon = bullet.indexOf(":");
+  const body = colon >= 0 ? bullet.slice(colon + 1) : bullet;
+  return body.replace(/\s+/g, " ").trim().toLowerCase();
+};
+
 export const valueBulletsForSection2 = (bullets: string[]): string[] => {
-  const cleaned = bullets.filter(Boolean);
-  if (cleaned.length <= SECTION2_VALUE_BULLET_MAX) {
-    return cleaned;
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  bullets.filter(Boolean).forEach((bullet) => {
+    const key = valueBulletDescriptionKey(bullet);
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    deduped.push(bullet);
+  });
+  if (deduped.length <= SECTION2_VALUE_BULLET_MAX) {
+    return deduped;
   }
-  return cleaned.slice(0, SECTION2_VALUE_BULLET_MAX);
+  return deduped.slice(0, SECTION2_VALUE_BULLET_MAX);
 };
 
 /** Section 3 — grid columns per card count (desktop). */

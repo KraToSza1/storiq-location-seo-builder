@@ -189,6 +189,7 @@ export default function LocationWizard() {
         >
           <ExistingContentParser
             content={project.existingContent}
+            state={project.locationIdentity.state}
             onChange={(existingContent) => setProject((current) => ({ ...current, existingContent }))}
             showNapFields={false}
             showStorageTypes={false}

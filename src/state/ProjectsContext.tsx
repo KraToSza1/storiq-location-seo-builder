@@ -4,6 +4,7 @@ import {
   generateDraftMetaDescription,
   generateDraftSections,
   generateDraftTitleTag,
+  sanitizeDraftFaqs,
   sanitizeDraftSections,
 } from "../lib/draftGenerator";
 import {
@@ -107,8 +108,11 @@ export const prepareProject = (
     facilities,
     images,
   );
-  const draftFaqs =
-    incomingGenerated.draftFaqs.length > 0 ? incomingGenerated.draftFaqs : generateDraftFaqs(project, images);
+  const draftFaqs = sanitizeDraftFaqs(
+    project,
+    incomingGenerated.draftFaqs.length > 0 ? incomingGenerated.draftFaqs : generateDraftFaqs(project, images),
+    images,
+  );
   const lastDraftedAt = incomingGenerated.lastDraftedAt.trim() || new Date().toISOString();
   const selectedStorageImages = migrateSelectedStorageImageIds(project.selectedStorageImages);
   const withDraft = {

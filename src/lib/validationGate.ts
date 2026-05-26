@@ -21,7 +21,7 @@ import {
 } from "./staticHtmlChecks";
 import { parseGeoFromMapEmbed } from "./templateJsonLd";
 import { parsePhoneDigits } from "./templateUtils";
-import { hasUnresolvedPlaceholderInHtml } from "./validators";
+import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 export type ValidationGateCategory = "safety" | "structural" | "content" | "schema" | "judgment";
@@ -519,6 +519,35 @@ export const runValidationGate = (input: ValidationGateInput): ValidationGateChe
     !c7Fail
       ? pass("C7", "Section 5 self-reference", "content", "No self-links; same-city branches are disambiguated.")
       : fail("C7", "Section 5 self-reference", "content", c7Fail, c7Fail),
+  );
+
+  const map = parseGoogleMapsIframe(mapIframe);
+  const isEmbedPb = /google\.com\/maps\/embed/i.test(map.detectedSrc) && /!3d/i.test(map.detectedSrc);
+  const isLegacyQueryEmbed = /maps\.google\.com\/maps\?q=/i.test(map.detectedSrc);
+  push(
+    map.isValid && !isLegacyQueryEmbed
+      ? pass("T-map-embed", "Google Maps embed quality", "structural", isEmbedPb ? "Proper maps/embed iframe with coordinates." : "Map iframe present.")
+      : fail(
+          "T-map-embed",
+          "Google Maps embed quality",
+          "structural",
+          isLegacyQueryEmbed
+            ? "Replace basic maps?q= embed with the full Google Maps Embed iframe (pb= coordinates)."
+            : "Valid Google Maps iframe required.",
+          map.detectedSrc.slice(0, 120),
+        ),
+  );
+  push(
+    map.isValid && map.hasLazyLoading && map.hasTitle && map.hasReferrerPolicy
+      ? pass("map-attrs", "Map iframe attributes", "structural", `lazy=${map.hasLazyLoading}, title=${map.hasTitle}, referrerpolicy=${map.hasReferrerPolicy}`)
+      : fail(
+          "map-attrs",
+          "Map iframe attributes",
+          "structural",
+          map.isValid
+            ? `Missing map attributes (lazy=${map.hasLazyLoading}, title=${map.hasTitle}, referrer=${map.hasReferrerPolicy}).`
+            : "Valid Google Maps iframe required.",
+        ),
   );
 
   // --- J1 Schema blocks ---

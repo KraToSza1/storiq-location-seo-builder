@@ -9,17 +9,19 @@ export default function ExistingContentParser({
   onExtracted,
   showNapFields = true,
   showStorageTypes = true,
+  state = "TX",
 }: {
   content: LocationProject["existingContent"];
   onChange: (content: LocationProject["existingContent"]) => void;
   onExtracted?: (content: LocationProject["existingContent"]) => void;
+  state?: string;
   /** Hide address when collected on the NAP step. */
   showNapFields?: boolean;
   /** Hide storage types list — selected via Storage Types step. */
   showStorageTypes?: boolean;
 }) {
   const extract = () => {
-    const extracted = extractContentClues(content.rawContent);
+    const extracted = extractContentClues(content.rawContent, state);
     const next = {
       ...content,
       phone: content.phone || extracted.phone || "",

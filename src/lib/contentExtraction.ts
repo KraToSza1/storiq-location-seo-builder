@@ -1,4 +1,7 @@
+import { areaCodesForState } from "../config/validationGate/areaCodesByState";
+import { isValidFaqCandidate } from "./contentQuality";
 import { stripPromotionalLanguage } from "./myGarageGenerationSpec";
+import { formatPhoneDisplay, parsePhoneDigits } from "./templateUtils";
 
 const phoneRegex = /\+\d[\d\s().-]{6,}\d|(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
 
@@ -160,9 +163,24 @@ const findHoursLines = (lines: string[], type: "access" | "office"): string | un
   return lines.find((line) => /hours/i.test(line) && timeLike.test(line));
 };
 
-const normalizePhone = (raw?: string): string | undefined => {
-  if (!raw) return undefined;
-  return raw.replace(/\s+/g, " ").trim();
+const pickPhoneFromText = (rawContent: string, state: string): string | undefined => {
+  const matches = rawContent.match(
+    /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g,
+  );
+  if (!matches?.length) {
+    return undefined;
+  }
+
+  const allowed = areaCodesForState(state);
+  const candidates = matches.map((match) => parsePhoneDigits(match)).filter((digits) => digits.length === 10);
+
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  const preferred = allowed.length > 0 ? candidates.find((digits) => allowed.includes(digits.slice(0, 3))) : undefined;
+  const digits = preferred ?? candidates[0]!;
+  return formatPhoneDisplay(digits);
 };
 
 const storagelyUrlRegex =
@@ -214,7 +232,7 @@ export const extractFaqsFromRawContent = (rawContent: string): ExtractedFaq[] =>
     }
 
     const answer = stripPromotionalLanguage(answerParts.join(" ").trim());
-    if (question && answer) {
+    if (question && answer && isValidFaqCandidate(question, answer)) {
       faqs.push({ question, answer });
     }
   }
@@ -222,13 +240,15 @@ export const extractFaqsFromRawContent = (rawContent: string): ExtractedFaq[] =>
   return faqs;
 };
 
-export const extractContentClues = (rawContent: string): ExtractedContent => {
+export const extractContentClues = (rawContent: string, state = "TX"): ExtractedContent => {
   const sanitized = stripPromotionalLanguage(rawContent);
   const lines = sanitized
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const phone = normalizePhone(sanitized.match(phoneRegex)?.[0]);
+  const fallbackMatch = sanitized.match(phoneRegex)?.[0];
+  const phone =
+    pickPhoneFromText(sanitized, state) ?? (fallbackMatch ? formatPhoneDisplay(fallbackMatch) : undefined);
   const address = findAddressLine(lines);
   const accessHours = findHoursLines(lines, "access");
   const officeHours = findHoursLines(lines, "office");

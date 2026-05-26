@@ -1,12 +1,14 @@
 import {
-  buildFacilityWireframeHeadings,
-  resolveFaqKeyword,
-  VALUE_PROPOSITION_OPENING,
-} from "./facilityWireframe";
+  collapseWhitespace,
+  formatKeywordPhrase,
+  formatPlaceTitleCase,
+  isValidFaqCandidate,
+} from "./contentQuality";
+import { buildFacilityWireframeHeadings, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
 import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import { extractFaqsFromRawContent } from "./contentExtraction";
-import { amenitiesForSection1, stripPromotionalLanguage, valueBulletsForSection2 } from "./myGarageGenerationSpec";
+import { amenitiesForSection1, buildSection1IntroFallback, stripPromotionalLanguage, valueBulletsForSection2 } from "./myGarageGenerationSpec";
 import { isEditorInstruction } from "./templateDraftUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -53,10 +55,10 @@ const buildLocalDraftBody = (
   place: string,
   localRefs: string[],
 ): string => {
-  const keyword = project.seo.primaryKeyword || `self storage units in ${place}`;
+  const { city, state } = project.locationIdentity;
   const address = project.existingContent.address?.trim();
   const paragraphs: string[] = [
-    `${facilityName} is proud to serve the ${place} community with ${keyword} for households, businesses, and vehicle owners. Whether you are downsizing, renovating, or simply need extra space, our team understands the storage needs that come with life in ${place}.`,
+    `${facilityName} is proud to serve the ${place} community. Whether you are downsizing, renovating, or simply need extra space, our team understands the storage needs that come with life in ${formatPlaceTitleCase(city, state)}.`,
   ];
 
   if (localRefs.length > 0) {
@@ -93,8 +95,10 @@ const buildLocalDraftBody = (
 
 const buildMapDraftBody = (project: LocationProject, facilityName: string, place: string): string => {
   const address = project.existingContent.address?.trim() || place;
-  const officeHours = project.existingContent.officeHours?.trim() || "contact the facility for current office hours";
-  const accessHours = project.existingContent.accessHours?.trim() || "contact the facility for gate and access hours";
+  const officeHours =
+    collapseWhitespace(project.existingContent.officeHours?.trim() || "") || "contact the facility for current office hours";
+  const accessHours =
+    collapseWhitespace(project.existingContent.accessHours?.trim() || "") || "contact the facility for gate and access hours";
 
   return `${facilityName} is located at ${address} in ${place}. Office hours: ${officeHours}. Access hours: ${accessHours}. Use the map for directions, then contact the facility or reserve online when you are ready to move in.`;
 };
@@ -139,66 +143,67 @@ export const sanitizeDraftSections = (
   });
 };
 
-const ensureKeywordInText = (text: string, keyword: string, place: string): string => {
-  const normalized = text.toLowerCase();
-  if (normalized.includes(keyword.toLowerCase()) || normalized.includes(place.toLowerCase())) {
-    return stripPromotionalLanguage(text);
+const adaptSourceFaq = (faq: { question: string; answer: string }, city: string, state: string): FaqItem | undefined => {
+  const question = stripPromotionalLanguage(faq.question.trim());
+  const answer = stripPromotionalLanguage(faq.answer.trim());
+  if (!isValidFaqCandidate(question, answer)) {
+    return undefined;
   }
-  return stripPromotionalLanguage(`${text.replace(/\s*\?*$/, "")} for ${keyword}?`);
+  const place = formatPlaceTitleCase(city, state);
+  const qLower = question.toLowerCase();
+  const normalizedQuestion = qLower.includes(place.toLowerCase())
+    ? question
+    : `${question.replace(/\s*\?*$/, "")} in ${place}?`;
+  return { question: normalizedQuestion, answer };
 };
 
-const adaptSourceFaq = (faq: { question: string; answer: string }, keyword: string, place: string): FaqItem => ({
-  question: ensureKeywordInText(faq.question.trim(), keyword, place),
-  answer: stripPromotionalLanguage(faq.answer.trim()),
-});
-
-const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage[], keyword: string, place: string): FaqItem[] => {
+const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage[], placeLabel: string): FaqItem[] => {
   const types = selectedStorageTypes(project, images);
   const typesText = types.length > 0 ? types.join(", ") : "multiple unit sizes and storage layouts";
   const features = sentenceList(project.existingContent.features.slice(0, 4), "gated access, flexible rentals, and secure storage");
   const localRefs = mergeLocalReferences(project.localContext);
-  const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, place) : place;
+  const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, placeLabel) : placeLabel;
   const address = project.existingContent.address || "the address listed on this page";
   const officeHours = project.existingContent.officeHours || "available by phone — contact us for current office hours";
   const accessHours = project.existingContent.accessHours || "available by phone — contact us for gate and access hours";
   const featureText = project.existingContent.features.join(" ").toLowerCase();
   const pool: FaqItem[] = [
     {
-      question: `What unit sizes and storage types are available for ${keyword} in ${place}?`,
-      answer: `This property offers ${keyword} including ${typesText}. Contact our team to confirm which unit sizes are available for your storage needs.`,
+      question: `What unit sizes and storage types are available in ${placeLabel}?`,
+      answer: `This property offers ${typesText} for customers in ${placeLabel}. Contact our team to confirm which unit sizes are available for your storage needs.`,
     },
     {
-      question: `What security and access features come with ${keyword}?`,
-      answer: `Renters using ${keyword} benefit from ${features}. Ask our on-site team how gate access and property security work at this location.`,
+      question: `What security and access features are available in ${placeLabel}?`,
+      answer: `Renters benefit from ${features}. Ask our on-site team how gate access and property security work at this location.`,
     },
     {
-      question: `What are the office and access hours for ${keyword}?`,
-      answer: `For ${keyword} in ${place}, office hours are ${officeHours} and access hours are ${accessHours}.`,
+      question: `What are the office and access hours in ${placeLabel}?`,
+      answer: `Office hours are ${officeHours} and access hours are ${accessHours}.`,
     },
     {
-      question: `Where is ${keyword} located in ${place}?`,
-      answer: `Find ${keyword} at ${address}${localRefs.length > 0 ? `, convenient for customers near ${localRefsText}` : ""}.`,
+      question: `Where is this facility located in ${placeLabel}?`,
+      answer: `Find us at ${address}${localRefs.length > 0 ? `, convenient for customers near ${localRefsText}` : ""}.`,
     },
     {
-      question: `Can I complete my rental online for ${keyword}?`,
-      answer: `Many customers renting ${keyword} in ${place} can start the process online. Contact our team to confirm the current rental workflow for this property.`,
+      question: `Can I complete my rental online in ${placeLabel}?`,
+      answer: `Many customers in ${placeLabel} can start the process online. Contact our team to confirm the current rental workflow for this property.`,
     },
     {
-      question: `Why do customers choose ${keyword} in ${place}?`,
-      answer: `${keyword} at this property combines ${features} with flexible rental options. Compare unit types and amenities to find the right fit.`,
+      question: `Why do customers choose storage at this ${placeLabel} location?`,
+      answer: `This property combines ${features} with flexible rental options. Compare unit types and amenities to find the right fit.`,
     },
   ];
 
   if (featureText.includes("climate")) {
     pool.unshift({
-      question: `Does this location offer climate-controlled ${keyword}?`,
-      answer: `Yes — climate-controlled options are part of ${keyword} at this property when available. Confirm unit availability with our team before move-in.`,
+      question: `Does this location offer climate-controlled storage in ${placeLabel}?`,
+      answer: `Yes — climate-controlled options may be available at this property. Confirm unit availability with our team before move-in.`,
     });
   }
   if (featureText.includes("rv") || featureText.includes("boat") || types.some((t) => /rv|boat/i.test(t))) {
     pool.unshift({
-      question: `Can I store an RV or boat with ${keyword} in ${place}?`,
-      answer: `Vehicle storage options may be available for ${keyword} in ${place}. Contact us to confirm outdoor, covered, or enclosed vehicle storage based on your unit needs.`,
+      question: `Can I store an RV or boat in ${placeLabel}?`,
+      answer: `Vehicle storage options may be available in ${placeLabel}. Contact us to confirm outdoor, covered, or enclosed vehicle storage based on your needs.`,
     });
   }
 
@@ -207,12 +212,10 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
   const { city, state } = project.locationIdentity;
-  const place = cityState(project);
-  const keyword = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
-  const sourceFaqs = extractFaqsFromRawContent(project.existingContent.rawContent).map((faq) =>
-    adaptSourceFaq(faq, keyword, place),
-  );
-  const featureFaqs = buildFacilityFeatureFaqs(project, images, keyword, place);
+  const sourceFaqs = extractFaqsFromRawContent(project.existingContent.rawContent)
+    .map((faq) => adaptSourceFaq(faq, city, state))
+    .filter((faq): faq is FaqItem => Boolean(faq));
+  const featureFaqs = buildFacilityFeatureFaqs(project, images, formatPlaceTitleCase(city, state));
   const merged: FaqItem[] = [];
 
   sourceFaqs.forEach((faq) => {
@@ -232,6 +235,22 @@ export const generateDraftFaqs = (project: LocationProject, images: StorageImage
   return merged.slice(0, 6);
 };
 
+export const sanitizeDraftFaqs = (project: LocationProject, faqs: FaqItem[], images: StorageImage[]): FaqItem[] => {
+  const cleaned = faqs.filter((faq) => isValidFaqCandidate(faq.question, faq.answer));
+  if (cleaned.length >= 6) {
+    return cleaned.slice(0, 6);
+  }
+  const fresh = generateDraftFaqs(project, images);
+  const merged: FaqItem[] = [...cleaned];
+  fresh.forEach((faq) => {
+    if (merged.length >= 6) return;
+    if (!merged.some((item) => item.question.toLowerCase() === faq.question.toLowerCase())) {
+      merged.push(faq);
+    }
+  });
+  return merged.slice(0, 6);
+};
+
 export const generateDraftSections = (
   project: LocationProject,
   facilities: NearbyFacility[],
@@ -241,7 +260,6 @@ export const generateDraftSections = (
   const place = cityState(project);
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
   const headings = buildFacilityWireframeHeadings(city, state, place);
-  const faqKeyword = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
   const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
   const valueBullets = buildValueBullets(project);
   const storageTypes = selectedStorageTypes(project, images);
@@ -256,14 +274,20 @@ export const generateDraftSections = (
     (type) => `${type} at ${facilityName} can help customers in ${place} store belongings with a layout suited to that storage category.`,
   );
   const typesText = storageTypes.length > 0 ? sentenceList(storageTypes, "flexible storage options") : "flexible storage options";
-  const keyword = project.seo.primaryKeyword || `self storage units in ${place}`;
+  const featureSummary = sentenceList(project.existingContent.features.slice(0, 4), "practical storage amenities");
+  const section1Intro = buildSection1IntroFallback(
+    facilityName,
+    place,
+    project.existingContent.address,
+    featureSummary,
+  );
 
   return [
     {
       id: "intro",
       label: "Section 1",
       heading: headings.features,
-      body: `${facilityName} offers ${keyword} with ${featureText}. Our ${place} location combines practical amenities with a team that knows the community, helping you find the right unit for household, business, or vehicle storage needs.`,
+      body: `${section1Intro} Customers across ${place} choose us for ${featureText} and flexible storage options for household, business, and vehicle needs.`,
       bullets: amenitiesForSection1(project.existingContent.features),
     },
     {
@@ -304,7 +328,7 @@ export const generateDraftSections = (
       id: "faqs",
       label: "Section 6",
       heading: headings.faq,
-      body: `Answers to common questions about ${faqKeyword}, including unit types, amenities, hours, and directions for customers in ${place}.`,
+      body: `Answers to common questions about ${formatKeywordPhrase(city, state, "faq")}, including unit types, amenities, hours, and directions for customers in ${place}.`,
       bullets: generateDraftFaqs(project, images).map((faq) => faq.question),
     },
     {

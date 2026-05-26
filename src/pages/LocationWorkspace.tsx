@@ -250,6 +250,7 @@ export default function LocationWorkspace() {
             <h2 className="storiq-section-title mb-5">Existing Location Content</h2>
             <ExistingContentParser
               content={project.existingContent}
+              state={project.locationIdentity.state}
               onChange={(existingContent) => save((current) => ({ ...current, existingContent }))}
               showNapFields={false}
               showStorageTypes={false}

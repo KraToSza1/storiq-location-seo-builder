@@ -1,7 +1,18 @@
 import { parseGoogleMapsIframe } from "./validators";
 
-export const buildMapsQuery = (address: string, facilityName?: string): string => {
-  const parts = [facilityName?.trim(), address.trim()].filter(Boolean);
+export const buildMapsQuery = (
+  address: string,
+  facilityName?: string,
+  city?: string,
+  state?: string,
+  zipCode?: string,
+): string => {
+  const place = [city?.trim(), state?.trim(), zipCode?.trim()].filter(Boolean).join(", ");
+  const addressWithPlace =
+    place && address.trim() && !address.toLowerCase().includes(city?.trim().toLowerCase() ?? "")
+      ? `${address.trim()}, ${place}`
+      : address.trim() || place;
+  const parts = [facilityName?.trim(), addressWithPlace].filter(Boolean);
   return parts.join(", ");
 };
 
@@ -43,7 +54,8 @@ export const getMapPreviewSrc = (
     project.existingContent.address.trim() ||
     [project.locationIdentity.city, project.locationIdentity.state, project.locationIdentity.zipCode].filter(Boolean).join(", ");
 
-  const query = buildMapsQuery(address, project.locationIdentity.facilityName);
+  const { city, state, zipCode, facilityName } = project.locationIdentity;
+  const query = buildMapsQuery(address, facilityName, city, state, zipCode);
   return query ? buildGoogleMapsEmbedSrc(query) : undefined;
 };
 
@@ -55,8 +67,9 @@ export const buildGoogleMapsFromProject = (project: {
     project.existingContent.address.trim() ||
     [project.locationIdentity.city, project.locationIdentity.state, project.locationIdentity.zipCode].filter(Boolean).join(", ");
 
-  const query = buildMapsQuery(address, project.locationIdentity.facilityName);
-  const iframeCode = query ? buildGoogleMapsIframeMarkup(query, `Map to ${project.locationIdentity.facilityName || "facility"}`) : "";
+  const { city, state, zipCode, facilityName } = project.locationIdentity;
+  const query = buildMapsQuery(address, facilityName, city, state, zipCode);
+  const iframeCode = query ? buildGoogleMapsIframeMarkup(query, `Map to ${facilityName || "facility"}`) : "";
   const parsed = parseGoogleMapsIframe(iframeCode);
 
   return {

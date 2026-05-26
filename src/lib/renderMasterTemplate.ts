@@ -20,6 +20,7 @@ import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
 import { formatValueBullet } from "./valuePropositionCopy";
 import { renderSelfStorageJsonLd } from "./templateJsonLd";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
+import { nearbyCardDescription, nearbyCardImageAlt, nearbyFacilityHeading } from "./contentQuality";
 import { cityState, escapeHtml, externalLinkAttrs, formatPhoneDisplay, formatTelHref, safeUrl } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -109,8 +110,13 @@ const renderNearbyCard = (
   publishAssetBaseUrl: string,
 ): string => {
   const place = cityState(project);
-  const linkLabel = `View ${facility.city} Storage`;
-  const imageAlt = `Self storage units in ${facility.city}, ${facility.state} near ${place}`;
+  const heading = nearbyFacilityHeading(facility, project.locationIdentity.city);
+  const linkLabel = heading.includes("—") ? `View ${heading.split("—")[1]?.trim() ?? facility.city} Storage` : `View ${facility.city} Storage`;
+  const imageAlt = nearbyCardImageAlt(facility, {
+    city: project.locationIdentity.city,
+    state: project.locationIdentity.state,
+    facilityName: project.locationIdentity.facilityName,
+  });
   const storagelyUrl = resolveCanonicalStoragelyUrl(facility);
   const imageSrc = publishMediaUrl(facility.imageUrl, publishAssetBaseUrl);
   const imageMarkup = `<img
@@ -126,11 +132,8 @@ const renderNearbyCard = (
       <article class="location-card">
         ${imageMarkup}
         <div class="location-card__content">
-          <h3>${escapeHtml(facility.city)}, ${escapeHtml(facility.state)}</h3>
-          <p>${escapeHtml(
-            facility.notes?.trim() ||
-              `Convenient self storage in ${facility.city}, ${facility.state}, with flexible month-to-month rentals and easy access for residents and businesses near ${place}.`,
-          )}</p>
+          <h3>${escapeHtml(heading)}</h3>
+          <p>${escapeHtml(nearbyCardDescription(facility, place))}</p>
           <a href="${safeUrl(storagelyUrl)}" class="location-card__link"${externalLinkAttrs(storagelyUrl)}>${escapeHtml(linkLabel)}</a>
         </div>
       </article>`;
