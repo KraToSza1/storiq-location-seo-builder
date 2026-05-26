@@ -2,7 +2,6 @@ import { DEFAULT_PUBLISH_ASSET_BASE, toAbsoluteMediaUrl } from "./assetUrls";
 import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { buildLocalSectionDraftBody, buildMapSectionDraftBody, generateDraftTitleTag } from "./draftGenerator";
-import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
 import { resolveCanonicalStoragelyUrl } from "./facilityRegistry";
 import { buildFacilityWireframeHeadings, ensureValuePropositionOpening, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
 import {
@@ -19,35 +18,13 @@ import { getProjectValidation } from "./validators";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
 import { formatValueBullet } from "./valuePropositionCopy";
+import { renderSelfStorageJsonLd } from "./templateJsonLd";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
-import { cityState, escapeHtml, externalLinkAttrs, formatTelHref, safeUrl, slugify } from "./templateUtils";
+import { cityState, escapeHtml, externalLinkAttrs, formatTelHref, safeUrl } from "./templateUtils";
 import type { DraftSection, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const publishMediaUrl = (url: string | undefined | null, publishAssetBaseUrl: string): string =>
   toAbsoluteMediaUrl(url, publishAssetBaseUrl);
-
-const nearbyLocationClass = (facility: NearbyFacility): string =>
-  slugify(`${facility.city}-${facility.facilityName || facility.id}`);
-
-const renderNearbyLocationCss = (facilities: NearbyFacility[], publishAssetBaseUrl: string): string => {
-  const withImages = facilities.filter((facility) => facility.imageUrl?.trim());
-  if (withImages.length === 0) {
-    return "";
-  }
-
-  const varLines = withImages.map((facility) => {
-    const key = nearbyLocationClass(facility);
-    const url = publishMediaUrl(facility.imageUrl, publishAssetBaseUrl).replace(/'/g, "%27");
-    return `    --img-loc-${key}: url('${url}');`;
-  });
-
-  const classLines = withImages.map((facility) => {
-    const key = nearbyLocationClass(facility);
-    return `  .location-card__image--${key} { background-image: var(--img-loc-${key}); }`;
-  });
-
-  return `:root {\n${varLines.join("\n")}\n  }\n\n${classLines.join("\n")}\n\n`;
-};
 
 const findDraftSection = (project: LocationProject, id: string): DraftSection | undefined =>
   project.generated.draftSections.find((section) => section.id === id);
@@ -126,17 +103,30 @@ const renderStorageCard = (
       </div>`;
 };
 
-const renderNearbyCard = (facility: NearbyFacility, project: LocationProject): string => {
+const renderNearbyCard = (
+  facility: NearbyFacility,
+  project: LocationProject,
+  publishAssetBaseUrl: string,
+): string => {
   const place = cityState(project);
   const linkLabel = `View ${facility.city} Storage`;
-  const imageKey = nearbyLocationClass(facility);
-  const imageClass = facility.imageUrl?.trim() ? `location-card__image--${imageKey}` : "";
   const imageAlt = `Self storage units in ${facility.city}, ${facility.state} near ${place}`;
   const storagelyUrl = resolveCanonicalStoragelyUrl(facility);
+  const imageSrc = publishMediaUrl(facility.imageUrl, publishAssetBaseUrl);
+  const imageMarkup = imageSrc
+    ? `<img
+        class="location-card__image"
+        src="${safeUrl(imageSrc)}"
+        alt="${escapeHtml(imageAlt)}"
+        width="480"
+        height="300"
+        loading="lazy"
+        decoding="async">`
+    : `<div class="location-card__image" role="img" aria-label="${escapeHtml(imageAlt)}"></div>`;
 
   return `
       <article class="location-card">
-        <div class="location-card__image ${imageClass}" role="img" aria-label="${escapeHtml(imageAlt)}"></div>
+        ${imageMarkup}
         <div class="location-card__content">
           <h3>${escapeHtml(facility.city)}, ${escapeHtml(facility.state)}</h3>
           <p>${escapeHtml(
@@ -205,12 +195,23 @@ export const renderStoragelyHtml = (
   const nearbyDraft = findDraftSection(project, "nearby");
   const faqItems = buildFaqItems(project, images);
   const faqJsonLd = renderFaqJsonLd(project, images);
+  const selfStorageJsonLd = renderSelfStorageJsonLd(project, facilities, images, publishAssetBaseUrl);
   const nearby = selectedFacilities(project, facilities);
-  const nearbyCss = renderNearbyLocationCss(nearby, publishAssetBaseUrl);
   const storageCards = selectedStorageImages(project, images)
     .map((image) => renderStorageCard(image, project, images, publishAssetBaseUrl))
     .join("\n");
-  const nearbyCards = nearby.map((facility) => renderNearbyCard(facility, project)).join("\n");
+  if (storageCardCount === 1) {
+    return formatGenerationBlocked([
+      {
+        id: "storage-cards",
+        label: "Section 3 storage cards",
+        message: "Only one storage type card resolved — Section 3 must not ship as a single card. Add library images for all offered types.",
+        severity: "required",
+      },
+    ]);
+  }
+
+  const nearbyCards = nearby.map((facility) => renderNearbyCard(facility, project, publishAssetBaseUrl)).join("\n");
   const phone = project.existingContent.phone.trim();
   const telHref = formatTelHref(phone);
 
@@ -247,7 +248,7 @@ export const renderStoragelyHtml = (
 
 <!-- STORIQ FACILITY TEMPLATE — CSS (see public/templates/final-master-template.md) -->
 <style>
-${nearbyCss}${MASTER_TEMPLATE_CSS}
+${MASTER_TEMPLATE_CSS}
 </style>
 </head>
 <body>
@@ -332,10 +333,14 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
   ${faqJsonLd}
   </script>
 
+  <script type="application/ld+json">
+  ${selfStorageJsonLd}
+  </script>
+
 </main>
 
 </body>
 </html>`;
 
-  return injectMetaDescription(documentHtml, resolveMetaDescription(project));
+  return documentHtml;
 };

@@ -1,6 +1,6 @@
 import type { ValidationIssue } from "../types/storiq";
 
-/** Limits from my-garage-location-tool-system-prompt.md */
+/** Limits from docs/system-prompt-v2.md */
 export const SECTION1_AMENITY_MIN = 8;
 export const SECTION1_AMENITY_MAX = 12;
 export const SECTION2_VALUE_BULLET_MIN = 5;
@@ -14,6 +14,8 @@ const PROMO_PATTERNS = [
   /move[\s-]in\s+special/gi,
   /promo(?:tion)?\s+code/gi,
   /discount(?:s)?\s+available/gi,
+  /move[\s-]in\s+specials?/gi,
+  /\bspecials?\b/gi,
 ];
 
 export const containsPromotionalLanguage = (text: string): boolean =>
@@ -31,13 +33,33 @@ export const stripPromotionalLanguage = (text: string): string => {
   return result.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 };
 
-export const amenitiesForSection1 = (features: string[]): string[] => {
-  const cleaned = features.map((item) => stripPromotionalLanguage(item)).filter(Boolean);
-  if (cleaned.length === 0) {
-    return cleaned;
-  }
-  return cleaned.slice(0, SECTION1_AMENITY_MAX);
+const amenityDedupeKey = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/®/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(self storage|storage units?|units?|access)\b/g, "")
+    .trim();
+
+export const dedupeAmenities = (features: string[]): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  features.forEach((feature) => {
+    const cleaned = stripPromotionalLanguage(feature).trim();
+    if (!cleaned) return;
+    const key = amenityDedupeKey(cleaned);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    result.push(cleaned);
+  });
+  return result;
 };
+
+export const amenitiesForSection1 = (features: string[]): string[] => dedupeAmenities(features).slice(0, SECTION1_AMENITY_MAX);
+
+/** Section 9 — restore ® on brand name in rendered copy. */
+export const normalizeBrandInText = (text: string): string =>
+  text.replace(/My Garage Self Storage(?!®)/gi, "My Garage Self Storage®");
 
 export const valueBulletsForSection2 = (bullets: string[]): string[] => {
   const cleaned = bullets.filter(Boolean);

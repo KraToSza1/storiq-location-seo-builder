@@ -5,7 +5,8 @@ import {
 } from "./facilityWireframe";
 import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
-import { amenitiesForSection1, valueBulletsForSection2 } from "./myGarageGenerationSpec";
+import { extractFaqsFromRawContent } from "./contentExtraction";
+import { amenitiesForSection1, stripPromotionalLanguage, valueBulletsForSection2 } from "./myGarageGenerationSpec";
 import { isEditorInstruction } from "./templateDraftUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -138,45 +139,97 @@ export const sanitizeDraftSections = (
   });
 };
 
-export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
-  const { city, state } = project.locationIdentity;
-  const place = cityState(project);
-  const keyword = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
+const ensureKeywordInText = (text: string, keyword: string, place: string): string => {
+  const normalized = text.toLowerCase();
+  if (normalized.includes(keyword.toLowerCase()) || normalized.includes(place.toLowerCase())) {
+    return stripPromotionalLanguage(text);
+  }
+  return stripPromotionalLanguage(`${text.replace(/\s*\?*$/, "")} for ${keyword}?`);
+};
+
+const adaptSourceFaq = (faq: { question: string; answer: string }, keyword: string, place: string): FaqItem => ({
+  question: ensureKeywordInText(faq.question.trim(), keyword, place),
+  answer: stripPromotionalLanguage(faq.answer.trim()),
+});
+
+const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage[], keyword: string, place: string): FaqItem[] => {
   const types = selectedStorageTypes(project, images);
-  const typesText = types.length > 0 ? types.join(", ") : "climate-controlled, drive-up, and vehicle storage options";
+  const typesText = types.length > 0 ? types.join(", ") : "multiple unit sizes and storage layouts";
   const features = sentenceList(project.existingContent.features.slice(0, 4), "gated access, flexible rentals, and secure storage");
   const localRefs = mergeLocalReferences(project.localContext);
   const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, place) : place;
-  const address = project.existingContent.address || "the confirmed street address on this page";
+  const address = project.existingContent.address || "the address listed on this page";
   const officeHours = project.existingContent.officeHours || "available by phone — contact us for current office hours";
   const accessHours = project.existingContent.accessHours || "available by phone — contact us for gate and access hours";
-
-  return [
+  const featureText = project.existingContent.features.join(" ").toLowerCase();
+  const pool: FaqItem[] = [
     {
-      question: `Do you offer ${keyword}?`,
-      answer: `Yes. We provide ${keyword} for households, businesses, and vehicle owners throughout ${place}. Contact us for current availability, unit sizes, and move-in specials.`,
+      question: `What unit sizes and storage types are available for ${keyword} in ${place}?`,
+      answer: `This property offers ${keyword} including ${typesText}. Contact our team to confirm which unit sizes are available for your storage needs.`,
     },
     {
-      question: `What types of ${keyword} are available?`,
-      answer: `This location offers ${keyword} including ${typesText}. Availability varies by unit size — confirm specific options with our team before renting.`,
-    },
-    {
-      question: `What amenities are included with ${keyword}?`,
-      answer: `Customers choosing ${keyword} in ${place} benefit from ${features}. Amenity availability may vary by unit — ask our on-site team for details.`,
+      question: `What security and access features come with ${keyword}?`,
+      answer: `Renters using ${keyword} benefit from ${features}. Ask our on-site team how gate access and property security work at this location.`,
     },
     {
       question: `What are the office and access hours for ${keyword}?`,
       answer: `For ${keyword} in ${place}, office hours are ${officeHours} and access hours are ${accessHours}.`,
     },
     {
-      question: `Where can I find ${keyword} near me?`,
-      answer: `Find ${keyword} at ${address}. Convenient for residents across ${place}${localRefs.length > 0 ? `, including areas near ${localRefsText}` : ""}.`,
+      question: `Where is ${keyword} located in ${place}?`,
+      answer: `Find ${keyword} at ${address}${localRefs.length > 0 ? `, convenient for customers near ${localRefsText}` : ""}.`,
     },
     {
-      question: `Why choose ${keyword} in ${place}?`,
-      answer: `${keyword} here combines ${features}, a team that knows ${place}, and flexible rental options. Compare unit sizes and amenities to find the right fit for your storage needs.`,
+      question: `Can I complete my rental online for ${keyword}?`,
+      answer: `Many customers renting ${keyword} in ${place} can start the process online. Contact our team to confirm the current rental workflow for this property.`,
+    },
+    {
+      question: `Why do customers choose ${keyword} in ${place}?`,
+      answer: `${keyword} at this property combines ${features} with flexible rental options. Compare unit types and amenities to find the right fit.`,
     },
   ];
+
+  if (featureText.includes("climate")) {
+    pool.unshift({
+      question: `Does this location offer climate-controlled ${keyword}?`,
+      answer: `Yes — climate-controlled options are part of ${keyword} at this property when available. Confirm unit availability with our team before move-in.`,
+    });
+  }
+  if (featureText.includes("rv") || featureText.includes("boat") || types.some((t) => /rv|boat/i.test(t))) {
+    pool.unshift({
+      question: `Can I store an RV or boat with ${keyword} in ${place}?`,
+      answer: `Vehicle storage options may be available for ${keyword} in ${place}. Contact us to confirm outdoor, covered, or enclosed vehicle storage based on your unit needs.`,
+    });
+  }
+
+  return pool;
+};
+
+export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
+  const { city, state } = project.locationIdentity;
+  const place = cityState(project);
+  const keyword = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
+  const sourceFaqs = extractFaqsFromRawContent(project.existingContent.rawContent).map((faq) =>
+    adaptSourceFaq(faq, keyword, place),
+  );
+  const featureFaqs = buildFacilityFeatureFaqs(project, images, keyword, place);
+  const merged: FaqItem[] = [];
+
+  sourceFaqs.forEach((faq) => {
+    if (merged.length >= 6) return;
+    if (!merged.some((item) => item.question.toLowerCase() === faq.question.toLowerCase())) {
+      merged.push(faq);
+    }
+  });
+
+  featureFaqs.forEach((faq) => {
+    if (merged.length >= 6) return;
+    if (!merged.some((item) => item.question.toLowerCase() === faq.question.toLowerCase())) {
+      merged.push(faq);
+    }
+  });
+
+  return merged.slice(0, 6);
 };
 
 export const generateDraftSections = (

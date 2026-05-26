@@ -1,4 +1,4 @@
-/** Client wireframe + generation rules: docs/my-garage-location-tool-system-prompt.md */
+/** Client wireframe + generation rules: docs/system-prompt-v2.md */
 
 export const FACILITY_WIREframe_SECTION_COUNT = 7;
 export const FACILITY_WIREframe_FAQ_COUNT = 6;

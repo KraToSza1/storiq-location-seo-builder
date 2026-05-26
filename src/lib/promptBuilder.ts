@@ -1,7 +1,7 @@
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { defaultFacilities } from "./facilityLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
-import systemPrompt from "../spec/my-garage-location-tool-system-prompt.md?raw";
+import systemPrompt from "../spec/system-prompt-v2.md?raw";
 import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const lines = (items: string[]): string => (items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : "- None provided");
@@ -83,5 +83,5 @@ ${lines(project.localContext.doNotInclude)}
 GOOGLE MAPS IFRAME
 ${project.googleMaps.iframeCode || "MISSING"}
 
-Output the final HTML document only, per the system prompt. If required inputs are missing, output the [GENERATION BLOCKED] block instead.`;
+Output the final HTML document only, per system-prompt-v2 (semantic nearby <img>, FAQPage + SelfStorage JSON-LD, no meta description). If required inputs are missing, output the [GENERATION BLOCKED] block instead.`;
 };

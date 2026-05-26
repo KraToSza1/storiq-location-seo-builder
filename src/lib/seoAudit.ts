@@ -265,6 +265,40 @@ export const runSEOAudit = (
     ),
   );
 
+  checks.push(
+    makeCheck(
+      "self-storage-jsonld",
+      "SelfStorage JSON-LD in export",
+      html.includes('"@type": "SelfStorage"') ? "pass" : "fail",
+      html.includes('"@type": "SelfStorage"') ? "SelfStorage JSON-LD block is present." : "SelfStorage JSON-LD is missing from export.",
+      "Regenerate HTML — v2 requires FAQPage and SelfStorage blocks.",
+    ),
+  );
+
+  checks.push(
+    makeCheck(
+      "no-meta-description",
+      "No meta description in template",
+      /<meta\s+name=["']description["']/i.test(html) ? "fail" : "pass",
+      /<meta\s+name=["']description["']/i.test(html)
+        ? "Remove meta description from template (out of scope per v2 spec)."
+        : "No meta description in template output.",
+    ),
+  );
+
+  const nearbyImgCount = countMatches(html, /<img\b[^>]*class=["'][^"']*location-card__image/gi);
+  checks.push(
+    makeCheck(
+      "nearby-semantic-img",
+      "Nearby cards use semantic img tags",
+      nearbyImgCount >= selectedFacilities.length && selectedFacilities.length > 0 ? "pass" : selectedFacilities.length === 0 ? "warning" : "fail",
+      selectedFacilities.length === 0
+        ? "No nearby facilities selected."
+        : `${nearbyImgCount}/${selectedFacilities.length} nearby cards use semantic <img> (v2 — no CSS backgrounds).`,
+      "Regenerate export after v2 nearby-card image update.",
+    ),
+  );
+
   const visibleFaq = visibleFaqText(html);
   const schema = JSON.parse(faqJsonLd) as {
     mainEntity: { name: string; acceptedAnswer: { text: string } }[];

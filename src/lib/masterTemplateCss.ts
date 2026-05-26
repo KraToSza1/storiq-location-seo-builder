@@ -1,4 +1,4 @@
-/** Static CSS from client master `public/templates/final-master-template.md` (Copperas Cove). Nearby image vars/classes are injected at export time. */
+/** Static CSS from client master `public/templates/final-master-template.md` (Copperas Cove). Section 5 nearby cards use semantic `<img>` per system-prompt-v2. */
 export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works even if Storagely strips <link> tags from <head> */
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
@@ -201,14 +201,16 @@ export const MASTER_TEMPLATE_CSS = `  /* Load Montserrat via @import so it works
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   }
 
-  .location-card__image {
-    width: 100%;
-    aspect-ratio: 16 / 10;
+  #facility-template .location-card__image {
+    width: 100% !important;
+    aspect-ratio: 16 / 10 !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center;
+    display: block;
     margin-bottom: 14px;
     border-radius: calc(var(--border-radius) - 4px);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     background-color: #e8e8e8;
   }
 

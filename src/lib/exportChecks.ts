@@ -175,6 +175,42 @@ export const runExportChecks = (
     ),
   );
 
+  const nearbySemanticImg = countMatches(html, /<img\b[^>]*class=["'][^"']*location-card__image/gi);
+  checks.push(
+    makeCheck(
+      "nearby-semantic-img",
+      "Nearby cards use semantic img",
+      selectedFacilities.length === 0
+        ? "warning"
+        : nearbySemanticImg >= selectedFacilities.length
+          ? "pass"
+          : "fail",
+      selectedFacilities.length === 0
+        ? "No nearby facilities selected."
+        : `${nearbySemanticImg}/${selectedFacilities.length} nearby cards use <img class=\"location-card__image\">.`,
+    ),
+  );
+
+  checks.push(
+    makeCheck(
+      "self-storage-jsonld",
+      "SelfStorage JSON-LD present",
+      html.includes('"@type": "SelfStorage"') ? "pass" : "fail",
+      html.includes('"@type": "SelfStorage"') ? "SelfStorage schema block found." : "SelfStorage JSON-LD is missing.",
+    ),
+  );
+
+  checks.push(
+    makeCheck(
+      "no-meta-description",
+      "No meta description in template",
+      /<meta\s+name=["']description["']/i.test(html) ? "fail" : "pass",
+      /<meta\s+name=["']description["']/i.test(html)
+        ? "Meta description must not be in template output (managed outside generator)."
+        : "No meta description tag in export.",
+    ),
+  );
+
   const imageTags = countMatches(html, /<img\b/gi);
   const withAlt = countMatches(html, /<img\b(?=[^>]*\salt=["'][^"']+["'])/gi);
   checks.push(

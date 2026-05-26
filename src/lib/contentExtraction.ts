@@ -173,6 +173,55 @@ export const extractStoragelyUrlsFromContent = (rawContent: string): string[] =>
   return Array.from(new Set(matches.map((url) => url.replace(/[),.;]+$/, "").trim())));
 };
 
+export interface ExtractedFaq {
+  question: string;
+  answer: string;
+}
+
+/** Pull FAQ pairs from raw page content when a FAQ section is present. */
+export const extractFaqsFromRawContent = (rawContent: string): ExtractedFaq[] => {
+  const lines = rawContent
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const faqs: ExtractedFaq[] = [];
+  let index = 0;
+
+  while (index < lines.length && faqs.length < 6) {
+    const line = lines[index];
+    const questionMatch = line.match(/^(?:q|question)\s*[:.]?\s*(.+)$/i);
+    const isQuestion = questionMatch || (line.endsWith("?") && line.length < 220);
+
+    if (!isQuestion) {
+      index += 1;
+      continue;
+    }
+
+    const question = (questionMatch?.[1] ?? line).trim();
+    const answerParts: string[] = [];
+    index += 1;
+
+    while (index < lines.length) {
+      const next = lines[index];
+      if (next.endsWith("?") && next.length < 220) break;
+      if (/^(?:q|question)\s*[:.]/i.test(next)) break;
+      if (/^faq\b/i.test(next)) break;
+
+      const answerMatch = next.match(/^(?:a|answer)\s*[:.]?\s*(.+)$/i);
+      answerParts.push(answerMatch?.[1] ?? next);
+      index += 1;
+      if (answerParts.join(" ").length > 40) break;
+    }
+
+    const answer = stripPromotionalLanguage(answerParts.join(" ").trim());
+    if (question && answer) {
+      faqs.push({ question, answer });
+    }
+  }
+
+  return faqs;
+};
+
 export const extractContentClues = (rawContent: string): ExtractedContent => {
   const sanitized = stripPromotionalLanguage(rawContent);
   const lines = sanitized
