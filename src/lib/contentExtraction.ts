@@ -1,3 +1,5 @@
+import { stripPromotionalLanguage } from "./myGarageGenerationSpec";
+
 const phoneRegex = /\+\d[\d\s().-]{6,}\d|(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/;
 
 const addressWords = [
@@ -172,16 +174,17 @@ export const extractStoragelyUrlsFromContent = (rawContent: string): string[] =>
 };
 
 export const extractContentClues = (rawContent: string): ExtractedContent => {
-  const lines = rawContent
+  const sanitized = stripPromotionalLanguage(rawContent);
+  const lines = sanitized
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const phone = normalizePhone(rawContent.match(phoneRegex)?.[0]);
+  const phone = normalizePhone(sanitized.match(phoneRegex)?.[0]);
   const address = findAddressLine(lines);
   const accessHours = findHoursLines(lines, "access");
   const officeHours = findHoursLines(lines, "office");
-  const storageTypes = storageKeywords.filter((keyword) => includesLoose(rawContent, keyword));
-  const features = extractFeaturesAndAmenities(rawContent);
+  const storageTypes = storageKeywords.filter((keyword) => includesLoose(sanitized, keyword));
+  const features = extractFeaturesAndAmenities(sanitized).map((item) => stripPromotionalLanguage(item)).filter(Boolean);
 
   return {
     phone,

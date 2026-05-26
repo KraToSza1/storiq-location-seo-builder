@@ -1,4 +1,4 @@
-/** Client wireframe: My Garage Content & SEO page structure (7 sections). */
+/** Client wireframe + generation rules: docs/my-garage-location-tool-system-prompt.md */
 
 export const FACILITY_WIREframe_SECTION_COUNT = 7;
 export const FACILITY_WIREframe_FAQ_COUNT = 6;

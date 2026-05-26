@@ -5,6 +5,7 @@ import {
 } from "./facilityWireframe";
 import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
+import { amenitiesForSection1, valueBulletsForSection2 } from "./myGarageGenerationSpec";
 import { isEditorInstruction } from "./templateDraftUtils";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -40,7 +41,7 @@ const buildValueBullets = (project: LocationProject): string[] => {
     ];
   }
 
-  return unique.slice(0, 8).map((feature) => formatValueBullet(feature, project));
+  return valueBulletsForSection2(unique.map((feature) => formatValueBullet(feature, project)));
 };
 
 const countWords = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length;
@@ -211,7 +212,7 @@ export const generateDraftSections = (
       label: "Section 1",
       heading: headings.features,
       body: `${facilityName} offers ${keyword} with ${featureText}. Our ${place} location combines practical amenities with a team that knows the community, helping you find the right unit for household, business, or vehicle storage needs.`,
-      bullets: project.existingContent.features.slice(0, 8),
+      bullets: amenitiesForSection1(project.existingContent.features),
     },
     {
       id: "value",

@@ -3,7 +3,8 @@ import { resolvePublishAssetBaseUrl } from "./assetUrls";
 import { defaultSettings } from "./projectDefaults";
 import { renderFaqJsonLd, renderStoragelyHtml } from "./templateRenderer";
 import { defaultFacilities } from "./facilityLibrary";
-import { auditFacilityHeadings, FACILITY_WIREframe_SECTION_SIGNALS } from "./facilityWireframe";
+import { auditFacilityHeadings, FACILITY_WIREframe_SECTION_SIGNALS, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
+import { containsPromotionalLanguage, isGenerationBlockedOutput } from "./myGarageGenerationSpec";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import type { AuditStatus, LocationProject, NearbyFacility, SEOAuditCheck } from "../types/storiq";
@@ -56,6 +57,22 @@ export const runSEOAudit = (
   images = defaultImages,
 ) => {
   const checks: SEOAuditCheck[] = [];
+
+  if (isGenerationBlockedOutput(html)) {
+    return {
+      score: 0,
+      checks: [
+        makeCheck(
+          "generation-blocked",
+          "Generation blocked",
+          "fail",
+          "Required inputs are missing — complete the wizard before export.",
+          "Fill city, state, keyword, map iframe, raw content, address, storage types, and nearby locations.",
+        ),
+      ],
+    };
+  }
+
   const keyword = project.seo.primaryKeyword.toLowerCase();
   const city = project.locationIdentity.city.toLowerCase();
   const state = project.locationIdentity.state.toLowerCase();
@@ -100,6 +117,43 @@ export const runSEOAudit = (
     ),
   );
 
+  checks.push(
+    makeCheck(
+      "no-h1",
+      "No H1 in template",
+      /<h1[\s>]/i.test(html) ? "fail" : "pass",
+      /<h1[\s>]/i.test(html) ? "Template must not include H1 — Storagely injects it." : "No H1 in template output.",
+    ),
+  );
+
+  const valuePropStartsCorrectly = html.includes(VALUE_PROPOSITION_OPENING);
+  checks.push(
+    makeCheck(
+      "value-prop-opening",
+      "Value prop opens with brand line",
+      valuePropStartsCorrectly ? "pass" : "warning",
+      valuePropStartsCorrectly
+        ? `Value proposition paragraph starts with "${VALUE_PROPOSITION_OPENING}".`
+        : `Value proposition should start with "${VALUE_PROPOSITION_OPENING}".`,
+      "Regenerate Section 2 draft copy.",
+    ),
+  );
+
+  const promoInContent =
+    containsPromotionalLanguage(project.existingContent.rawContent) ||
+    containsPromotionalLanguage(html);
+  checks.push(
+    makeCheck(
+      "no-promos",
+      "No promotional language",
+      promoInContent ? "warning" : "pass",
+      promoInContent
+        ? "Promotional or pricing language detected — remove before publish."
+        : "No promotional language detected.",
+      "Strip % off, first month free, and $/month offers from content.",
+    ),
+  );
+
   const headingAudit = auditFacilityHeadings(html);
   checks.push(
     makeCheck(
@@ -138,7 +192,7 @@ export const runSEOAudit = (
       storageAltIncludesPlace
         ? "Storage image alt text includes the city and state."
         : "Storage image alt text should include the city and state.",
-      "Use image alt text in the form: Storage type in City, State.",
+      "Use alt text: [Type] self storage units in [City, State].",
     ),
   );
 

@@ -5,6 +5,7 @@ import {
   FACILITY_WIREframe_SECTION_SIGNALS,
   normalizeWireframeFaqKeyword,
 } from "./facilityWireframe";
+import { isGenerationBlockedOutput } from "./myGarageGenerationSpec";
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
 import { buildFaqItems, renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
@@ -47,6 +48,18 @@ export const runExportChecks = (
   facilities: NearbyFacility[],
 ): ExportCheck[] => {
   const checks: ExportCheck[] = [];
+
+  if (isGenerationBlockedOutput(html)) {
+    return [
+      makeCheck(
+        "generation-blocked",
+        "Generation blocked",
+        "fail",
+        "Required inputs missing — complete the location wizard before exporting HTML.",
+      ),
+    ];
+  }
+
   const map = parseGoogleMapsIframe(project.googleMaps.iframeCode);
   const selectedImages = project.selectedStorageImages
     .map((id) => getStorageImageById(images, id))
@@ -77,6 +90,16 @@ export const runExportChecks = (
       hasUnresolvedPlaceholderInHtml(html)
         ? "Unresolved tokens detected ([City], TODO, REPLACE_WITH_URL, undefined, null)."
         : "No placeholder tokens found.",
+    ),
+  );
+
+  const h1Count = countMatches(html, /<h1[\s>]/gi);
+  checks.push(
+    makeCheck(
+      "no-h1",
+      "No H1 in template",
+      h1Count === 0 ? "pass" : "fail",
+      h1Count === 0 ? "No H1 in template (Storagely injects page H1)." : `Found ${h1Count} H1 tag(s) — remove from template.`,
     ),
   );
 

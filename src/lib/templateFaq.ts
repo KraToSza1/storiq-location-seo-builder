@@ -1,18 +1,10 @@
 import { generateDraftFaqs } from "./draftGenerator";
 import { defaultImages } from "./imageLibrary";
-import { cityState } from "./templateUtils";
+import { buildStorageImageAltText } from "./myGarageGenerationSpec";
 import type { FaqItem, LocationProject, StorageImage } from "../types/storiq";
 
-export const buildStorageImageAlt = (image: StorageImage, project: LocationProject): string => {
-  const place = cityState(project);
-  const base = image.altText.trim() || image.category;
-
-  if (!place) {
-    return base;
-  }
-
-  return base.toLowerCase().includes(place.toLowerCase()) ? base : `${base} in ${place}`;
-};
+export const buildStorageImageAlt = (image: StorageImage, project: LocationProject): string =>
+  buildStorageImageAltText(image.category, project.locationIdentity.city, project.locationIdentity.state);
 
 export const buildFaqItems = (project: LocationProject, images: StorageImage[] = defaultImages): FaqItem[] => {
   if (project.generated.draftFaqs.length > 0) {

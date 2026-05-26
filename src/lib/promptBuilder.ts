@@ -1,6 +1,7 @@
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { defaultFacilities } from "./facilityLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
+import systemPrompt from "../spec/my-garage-location-tool-system-prompt.md?raw";
 import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
 const lines = (items: string[]): string => (items.length > 0 ? items.map((item) => `- ${item}`).join("\n") : "- None provided");
@@ -15,7 +16,7 @@ export const buildAiPrompt = (
     .filter(Boolean)
     .map((image) => {
       if (!image) return "";
-      return `- ${image.category}: image=${image.imageUrl}; destinationUrl=${image.destinationUrl || "none; keep H3 plain text"}`;
+      return `- ${image.category}: image=${image.imageUrl}; destinationUrl=${image.destinationUrl || "none — keep H3 plain text"}`;
     })
     .join("\n");
 
@@ -28,7 +29,11 @@ export const buildAiPrompt = (
     })
     .join("\n");
 
-  return `Create a complete Storagely-ready local SEO HTML location page for My Garage Self Storage.
+  return `${systemPrompt.trim()}
+
+---
+
+## Current location inputs (populate the template above)
 
 LOCATION IDENTITY
 - City: ${project.locationIdentity.city || "MISSING"}
@@ -49,25 +54,27 @@ EXISTING LOCATION CONTENT
 Raw source content:
 ${project.existingContent.rawContent || "MISSING"}
 
-FEATURES & AMENITIES
+FEATURES & AMENITIES (8–12 for Section 1)
 ${lines(project.existingContent.features)}
 
 STORAGE TYPES OFFERED
 ${lines(project.existingContent.storageTypes)}
 
-SELECTED STORAGE TYPE CARDS AND IMAGES
+SELECTED STORAGE TYPE CARDS (Image Library)
 ${selectedStorage || "- None selected"}
 
-WORKING DRAFT COPY
+WORKING DRAFT COPY (starter — refine to match spec)
 Title tag draft: ${project.generated.draftTitleTag || "MISSING"}
 Meta description draft: ${project.generated.draftMetaDescription || "MISSING"}
 ${project.generated.draftSections.length > 0 ? project.generated.draftSections.map((section) => `${section.label} - ${section.heading}\n${section.body}\n${lines(section.bullets)}`).join("\n\n") : "- No working draft generated yet"}
 
-NEARBY LOCATIONS
+FAQ DRAFTS (must match visible FAQ + JSON-LD word-for-word)
+${project.generated.draftFaqs.length > 0 ? project.generated.draftFaqs.map((faq) => `Q: ${faq.question}\nA: ${faq.answer}`).join("\n\n") : "- None generated yet"}
+
+NEARBY LOCATIONS (3 cards, Section 5 — keyword-free H2)
 ${nearby || "- None selected"}
 
-LOCAL CONTEXT
-Local references within 10 miles / 16 km, manual verification required:
+LOCAL CONTEXT (Section 4 — 10-mile rule; manual verification)
 ${lines(mergeLocalReferences(project.localContext))}
 
 Do-not-include notes:
@@ -76,24 +83,5 @@ ${lines(project.localContext.doNotInclude)}
 GOOGLE MAPS IFRAME
 ${project.googleMaps.iframeCode || "MISSING"}
 
-SEO AND HTML RULES
-- Use one main wrapper: <main id="facility-template" class="facility-template">.
-- Include exactly 7 H2 page sections inside #facility-template: Features & Amenities, Why Choose, Types of Storage, Serving, Other Nearby Locations at My Garage, FAQs, and Map/Location CTA (map-section layout).
-- Storage cards must use H3 headings.
-- Nearby location cards must use H3 headings.
-- FAQ questions must use H3 inside summary.
-- Every image needs alt text that includes the City and State.
-- Images should include loading="lazy", decoding="async", width, and height.
-- Only link a storage type H3 when a destinationUrl exists. If destinationUrl is missing, keep the H3 plain text.
-- Do not link nearby locations to the current facility URL.
-- Do not claim local landmark distance verification is complete unless actual distance data exists.
-- FAQPage JSON-LD must match the visible FAQ question and answer text exactly.
-- Google Maps iframe should include loading="lazy", title, and referrerpolicy.
-- CSS must be scoped to #facility-template.
-- Do not leave unresolved placeholders such as [City], [State], REPLACE_WITH_URL, or TODO.
-
-OUTPUT REQUIREMENTS
-- Return only paste-safe HTML for Storagely.
-- Keep claims factual and based on the supplied content.
-- Use clear, professional copy for an internal production workflow.`;
+Output the final HTML document only, per the system prompt. If required inputs are missing, output the [GENERATION BLOCKED] block instead.`;
 };

@@ -1,11 +1,21 @@
 import { DEFAULT_PUBLISH_ASSET_BASE, toAbsoluteMediaUrl } from "./assetUrls";
 import { defaultFacilities } from "./facilityLibrary";
-import { defaultImages, getStorageImageById, isLinkableStorageType } from "./imageLibrary";
+import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { buildLocalSectionDraftBody, buildMapSectionDraftBody, generateDraftTitleTag } from "./draftGenerator";
 import { injectMetaDescription, resolveMetaDescription } from "./htmlExport";
 import { resolveCanonicalStoragelyUrl } from "./facilityRegistry";
 import { buildFacilityWireframeHeadings, ensureValuePropositionOpening, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
+import {
+  amenitiesForSection1,
+  buildSection1IntroFallback,
+  buildStorageGridStyle,
+  formatFacilityNameWithMark,
+  formatGenerationBlocked,
+  sanitizeGoogleMapsIframe,
+  valueBulletsForSection2,
+} from "./myGarageGenerationSpec";
 import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
+import { getProjectValidation } from "./validators";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
 import { formatValueBullet } from "./valuePropositionCopy";
@@ -59,7 +69,8 @@ const listMarkup = (items: string[], fallback: string): string => {
 
 const renderValueList = (project: LocationProject): string => {
   const valueDraft = findDraftSection(project, "value");
-  const bullets = valueDraft?.bullets?.length ? valueDraft.bullets : project.existingContent.features;
+  const sourceBullets = valueDraft?.bullets?.length ? valueDraft.bullets : project.existingContent.features;
+  const bullets = valueBulletsForSection2(sourceBullets);
 
   return bullets
     .map((bullet) => {
@@ -92,10 +103,9 @@ const renderStorageCard = (
   const alt = buildStorageImageAlt(image, project);
   const description = storageCardDescription(image, project, images);
   const destinationUrl = resolveStorageDestinationUrl(image);
-  const heading =
-    destinationUrl && isLinkableStorageType(image.category)
-      ? `<h3><a href="${safeUrl(destinationUrl)}" class="storage-card__heading-link"${externalLinkAttrs(destinationUrl)}>${escapeHtml(image.category)}</a></h3>`
-      : `<h3>${escapeHtml(image.category)}</h3>`;
+  const heading = destinationUrl
+    ? `<h3><a href="${safeUrl(destinationUrl)}" class="storage-card__heading-link"${externalLinkAttrs(destinationUrl)}>${escapeHtml(image.category)}</a></h3>`
+    : `<h3>${escapeHtml(image.category)}</h3>`;
   const imageSrc = publishMediaUrl(image.imageUrl, publishAssetBaseUrl);
   const imageMarkup = imageSrc
     ? `<img
@@ -161,15 +171,6 @@ const renderMapDirections = (project: LocationProject): string => {
     .join("\n        ");
 };
 
-const extractMapIframe = (iframeCode: string): string => {
-  const trimmed = iframeCode.trim();
-  if (!trimmed) {
-    return `<p style="padding:2rem;text-align:center;color:#555;">Add a Google Maps embed in Step 7 before exporting.</p>`;
-  }
-  const match = trimmed.match(/<iframe\b[\s\S]*?<\/iframe>/i);
-  return match?.[0] ?? trimmed;
-};
-
 const renderPageTitle = (project: LocationProject): string => {
   if (project.seo.titleTag.trim()) {
     return project.seo.titleTag.trim();
@@ -183,9 +184,22 @@ export const renderStoragelyHtml = (
   images: StorageImage[] = defaultImages,
   publishAssetBaseUrl: string = DEFAULT_PUBLISH_ASSET_BASE,
 ): string => {
+  const validation = getProjectValidation(project, facilities, images);
+  if (validation.hardFails.length > 0) {
+    return formatGenerationBlocked(validation.hardFails);
+  }
+
   const place = cityState(project);
   const { city, state } = project.locationIdentity;
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
+  const facilityNameMarked = formatFacilityNameWithMark(facilityName);
+  const section1Amenities = amenitiesForSection1(project.existingContent.features);
+  const storageCardCount = selectedStorageImages(project, images).length;
+  const storageGridStyle = buildStorageGridStyle(storageCardCount);
+  const featureSummary =
+    section1Amenities.length > 0
+      ? section1Amenities.slice(0, 4).join(", ").toLowerCase()
+      : "practical amenities and flexible access";
   const featuresDraft = findDraftSection(project, "intro");
   const valueDraft = findDraftSection(project, "value");
   const nearbyDraft = findDraftSection(project, "nearby");
@@ -204,7 +218,7 @@ export const renderStoragelyHtml = (
 
   const introBody = exportDraftBody(
     featuresDraft?.body,
-    `Our ${city || "local"} self storage facility offers everything you need to store with confidence. From practical amenities to flexible access, every feature is designed to make your storage experience secure, convenient, and hassle-free.`,
+    buildSection1IntroFallback(facilityName, place, project.existingContent.address, featureSummary),
   );
 
   const valueBody = ensureValuePropositionOpening(
@@ -246,7 +260,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
     <h2>${escapeHtml(headings.features)}</h2>
     <p>${escapeHtml(introBody)}</p>
     <ul class="facility-list">
-      ${listMarkup(project.existingContent.features, "Add confirmed Features &amp; Amenities before publishing.")}
+      ${listMarkup(section1Amenities, "Add confirmed Features &amp; Amenities before publishing.")}
     </ul>
   </section>
 
@@ -262,7 +276,7 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
   <!-- SECTION 3: Types of Storage -->
   <section class="facility-section facility-section--white">
     <h2>${escapeHtml(headings.storage)}</h2>
-    <div class="storage-grid">
+    <div class="storage-grid"${storageGridStyle}>
       ${storageCards || "<p>Select storage type images in Step 3 before exporting.</p>"}
     </div>
   </section>
@@ -300,11 +314,11 @@ ${nearbyCss}${MASTER_TEMPLATE_CSS}
   <section class="facility-section facility-section--brand">
     <div class="map-section">
       <div class="map-section__map">
-        ${extractMapIframe(project.googleMaps.iframeCode)}
+        ${sanitizeGoogleMapsIframe(project.googleMaps.iframeCode, city, state)}
       </div>
       <div class="map-section__info">
         <h2>${escapeHtml(headings.map)}</h2>
-        <p><strong>${escapeHtml(facilityName)}®</strong><br>
+        <p><strong>${escapeHtml(facilityNameMarked)}</strong><br>
         ${escapeHtml(project.existingContent.address || "Address required")}</p>
         ${renderMapDirections(project)}
         ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(project.existingContent.accessHours)}</p>` : ""}
