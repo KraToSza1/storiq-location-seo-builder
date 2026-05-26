@@ -1,9 +1,9 @@
 import {
   auditFacilityHeadings,
-  buildWireframeFaqKeyword,
   FACILITY_WIREframe_FAQ_COUNT,
   FACILITY_WIREframe_SECTION_SIGNALS,
-  normalizeWireframeFaqKeyword,
+  faqTextIncludesKeyword,
+  resolveFaqKeyword,
 } from "./facilityWireframe";
 import { isGenerationBlockedOutput } from "./myGarageGenerationSpec";
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
@@ -155,20 +155,23 @@ export const runExportChecks = (
     checks.push(makeCheck("faq-match", "FAQ text matches JSON-LD", "fail", "FAQ JSON-LD could not be parsed."));
   }
 
-  const faqKeyword = normalizeWireframeFaqKeyword(project.locationIdentity.city, project.locationIdentity.state);
-  const faqKeywordLabel = buildWireframeFaqKeyword(project.locationIdentity.city, project.locationIdentity.state);
+  const { city, state } = project.locationIdentity;
+  const place = [city, state].filter(Boolean).join(", ");
+  const faqKeywordLabel = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
   const faqItems = buildFaqItems(project, images);
   const faqsWithKeyword = faqItems.filter(
-    (item) => item.question.toLowerCase().includes(faqKeyword) || item.answer.toLowerCase().includes(faqKeyword),
+    (item) =>
+      faqTextIncludesKeyword(item.question, project.seo.primaryKeyword, city, state) ||
+      faqTextIncludesKeyword(item.answer, project.seo.primaryKeyword, city, state),
   ).length;
   checks.push(
     makeCheck(
       "faq-local-keyword",
-      "FAQs include local SEO keyword",
+      "FAQs include primary keyword",
       faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT ? "pass" : "fail",
       faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT
-        ? `All ${FACILITY_WIREframe_FAQ_COUNT} FAQs include "${faqKeywordLabel}".`
-        : `${faqsWithKeyword}/${FACILITY_WIREframe_FAQ_COUNT} FAQs include the wireframe keyword phrase.`,
+        ? `All ${FACILITY_WIREframe_FAQ_COUNT} FAQs include the primary keyword "${faqKeywordLabel}".`
+        : `${faqsWithKeyword}/${FACILITY_WIREframe_FAQ_COUNT} FAQs include the primary keyword.`,
     ),
   );
 

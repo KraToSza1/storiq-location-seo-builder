@@ -33,6 +33,38 @@ export const buildWireframeFaqKeyword = (city: string, state: string): string =>
 export const normalizeWireframeFaqKeyword = (city: string, state: string): string =>
   buildWireframeFaqKeyword(city, state).toLowerCase();
 
+/** Primary keyword for FAQ copy — prefers project SEO field, then wireframe fallback. */
+export const resolveFaqKeyword = (
+  primaryKeyword: string,
+  city: string,
+  state: string,
+  place: string,
+): string => {
+  const trimmed = primaryKeyword.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  const wireframe = buildWireframeFaqKeyword(city, state);
+  if (wireframe !== "Self Storage units") {
+    return wireframe.toLowerCase();
+  }
+  return place ? `self storage units in ${place}` : "self storage units";
+};
+
+export const faqTextIncludesKeyword = (
+  text: string,
+  primaryKeyword: string,
+  city: string,
+  state: string,
+): boolean => {
+  const normalized = text.toLowerCase();
+  const primary = primaryKeyword.trim().toLowerCase();
+  if (primary.length > 0 && normalized.includes(primary)) {
+    return true;
+  }
+  return normalized.includes(normalizeWireframeFaqKeyword(city, state));
+};
+
 /** Wireframe section signals used in export/SEO audits. */
 export const FACILITY_WIREframe_SECTION_SIGNALS = [
   "Features &amp; Amenities",

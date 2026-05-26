@@ -1,6 +1,6 @@
 import {
   buildFacilityWireframeHeadings,
-  buildWireframeFaqKeyword,
+  resolveFaqKeyword,
   VALUE_PROPOSITION_OPENING,
 } from "./facilityWireframe";
 import { getStorageImageById } from "./imageLibrary";
@@ -141,41 +141,40 @@ export const sanitizeDraftSections = (
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
   const { city, state } = project.locationIdentity;
   const place = cityState(project);
-  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
-  const localKeyword = buildWireframeFaqKeyword(city, state);
+  const keyword = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
   const types = selectedStorageTypes(project, images);
   const typesText = types.length > 0 ? types.join(", ") : "climate-controlled, drive-up, and vehicle storage options";
   const features = sentenceList(project.existingContent.features.slice(0, 4), "gated access, flexible rentals, and secure storage");
   const localRefs = mergeLocalReferences(project.localContext);
   const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, place) : place;
   const address = project.existingContent.address || "the confirmed street address on this page";
-  const officeHours = project.existingContent.officeHours || "available by phone — contact the facility for current office hours";
-  const accessHours = project.existingContent.accessHours || "available by phone — contact the facility for gate and access hours";
+  const officeHours = project.existingContent.officeHours || "available by phone — contact us for current office hours";
+  const accessHours = project.existingContent.accessHours || "available by phone — contact us for gate and access hours";
 
   return [
     {
-      question: `Do you offer ${localKeyword}?`,
-      answer: `Yes. ${facilityName} provides ${localKeyword} for households, businesses, and vehicle owners throughout ${place}. Contact the facility for current availability, unit sizes, and move-in specials.`,
+      question: `Do you offer ${keyword}?`,
+      answer: `Yes. We provide ${keyword} for households, businesses, and vehicle owners throughout ${place}. Contact us for current availability, unit sizes, and move-in specials.`,
     },
     {
-      question: `What types of ${localKeyword} are available?`,
-      answer: `${facilityName} offers ${localKeyword} including ${typesText}. Availability varies by unit size — confirm specific options with the facility team before renting.`,
+      question: `What types of ${keyword} are available?`,
+      answer: `This location offers ${keyword} including ${typesText}. Availability varies by unit size — confirm specific options with our team before renting.`,
     },
     {
-      question: `What amenities are included with ${localKeyword}?`,
-      answer: `Customers choosing ${localKeyword} at ${facilityName} benefit from ${features}. Amenity availability may vary by unit — ask the on-site team for details.`,
+      question: `What amenities are included with ${keyword}?`,
+      answer: `Customers choosing ${keyword} in ${place} benefit from ${features}. Amenity availability may vary by unit — ask our on-site team for details.`,
     },
     {
-      question: `What are the office and access hours for ${localKeyword}?`,
-      answer: `For ${localKeyword} at ${facilityName}, office hours are ${officeHours} and access hours are ${accessHours}.`,
+      question: `What are the office and access hours for ${keyword}?`,
+      answer: `For ${keyword} in ${place}, office hours are ${officeHours} and access hours are ${accessHours}.`,
     },
     {
-      question: `Where can I find ${localKeyword} near me?`,
-      answer: `${facilityName} serves customers searching for ${localKeyword} at ${address}. Convenient for residents across ${place}${localRefs.length > 0 ? `, including areas near ${localRefsText}` : ""}.`,
+      question: `Where can I find ${keyword} near me?`,
+      answer: `Find ${keyword} at ${address}. Convenient for residents across ${place}${localRefs.length > 0 ? `, including areas near ${localRefsText}` : ""}.`,
     },
     {
-      question: `Why choose ${facilityName} for ${localKeyword}?`,
-      answer: `${facilityName} makes ${localKeyword} simple with ${features}, a team that knows ${place}, and flexible rental options. Compare unit sizes and amenities to find the right fit for your storage needs.`,
+      question: `Why choose ${keyword} in ${place}?`,
+      answer: `${keyword} here combines ${features}, a team that knows ${place}, and flexible rental options. Compare unit sizes and amenities to find the right fit for your storage needs.`,
     },
   ];
 };
@@ -189,7 +188,7 @@ export const generateDraftSections = (
   const place = cityState(project);
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
   const headings = buildFacilityWireframeHeadings(city, state, place);
-  const localKeyword = buildWireframeFaqKeyword(city, state);
+  const faqKeyword = resolveFaqKeyword(project.seo.primaryKeyword, city, state, place);
   const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
   const valueBullets = buildValueBullets(project);
   const storageTypes = selectedStorageTypes(project, images);
@@ -252,7 +251,7 @@ export const generateDraftSections = (
       id: "faqs",
       label: "Section 6",
       heading: headings.faq,
-      body: `${facilityName} answers frequent questions about ${localKeyword}, including unit types, amenities, hours, and directions for customers in ${place}.`,
+      body: `Answers to common questions about ${faqKeyword}, including unit types, amenities, hours, and directions for customers in ${place}.`,
       bullets: generateDraftFaqs(project, images).map((faq) => faq.question),
     },
     {
