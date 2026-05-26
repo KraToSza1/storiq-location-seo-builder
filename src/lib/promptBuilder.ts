@@ -25,7 +25,7 @@ export const buildAiPrompt = (
     .filter(Boolean)
     .map((facility) => {
       if (!facility) return "";
-      return `- ${facility.facilityName} | ${facility.address} | ${facility.storagelyUrl}`;
+      return `- ${facility.facilityName} | ${facility.city}, ${facility.state} | image=${facility.imageUrl?.trim() || "MISSING — Section 5 requires library image URL"} | ${facility.storagelyUrl}`;
     })
     .join("\n");
 
@@ -83,5 +83,12 @@ ${lines(project.localContext.doNotInclude)}
 GOOGLE MAPS IFRAME
 ${project.googleMaps.iframeCode || "MISSING"}
 
-Output the final HTML document only, per system-prompt-v2 (semantic nearby <img>, FAQPage + SelfStorage JSON-LD, no meta description). If required inputs are missing, output the [GENERATION BLOCKED] block instead.`;
+ENGINEER NOTE (before portfolio-wide SelfStorage JSON-LD): view-source a live Storagely location page and confirm Storagely is NOT already injecting facility/LocalBusiness/SelfStorage schema. If it is, do not duplicate — reconcile first.
+
+OUTPUT RULES
+- Emit HTML only (or [GENERATION BLOCKED] if required inputs / hard rules fail).
+- Do NOT output <meta name="description"> (out of scope).
+- Section 5: <img class="location-card__image"> only — no CSS background-image / --img-loc-* tokens.
+- JSON-LD before </main>: FAQPage + SelfStorage (geo from map !2d=longitude, !3d=latitude).
+- Run system prompt Section 11 self-check before final output.`;
 };

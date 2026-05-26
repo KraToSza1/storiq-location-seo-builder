@@ -7,6 +7,7 @@ import {
 } from "./facilityWireframe";
 import { isGenerationBlockedOutput } from "./myGarageGenerationSpec";
 import { hasUnresolvedPlaceholderInHtml, parseGoogleMapsIframe } from "./validators";
+import { mergeLocalReferences } from "./localContextUtils";
 import { buildFaqItems, renderFaqJsonLd } from "./templateFaq";
 import type { ExportCheck, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 import { getStorageImageById } from "./imageLibrary";
@@ -172,6 +173,58 @@ export const runExportChecks = (
       faqsWithKeyword === FACILITY_WIREframe_FAQ_COUNT
         ? `All ${FACILITY_WIREframe_FAQ_COUNT} FAQs include the primary keyword "${faqKeywordLabel}".`
         : `${faqsWithKeyword}/${FACILITY_WIREframe_FAQ_COUNT} FAQs include the primary keyword.`,
+    ),
+  );
+
+  const legacyNearbyBackground = /--img-loc-|background-image:\s*var\(--img-loc/i.test(html);
+  checks.push(
+    makeCheck(
+      "no-legacy-nearby-bg",
+      "No legacy Section 5 CSS backgrounds",
+      legacyNearbyBackground ? "fail" : "pass",
+      legacyNearbyBackground
+        ? "Found --img-loc-* or CSS background nearby images — use semantic <img class=\"location-card__image\"> per system-prompt-v2."
+        : "No legacy nearby background-image pattern.",
+    ),
+  );
+
+  const nearbyDivRoleImg = countMatches(html, /<div[^>]*class=["'][^"']*location-card__image[^"']*["'][^>]*role=["']img["']/gi);
+  checks.push(
+    makeCheck(
+      "no-nearby-div-role-img",
+      "Nearby cards are not div role=img",
+      nearbyDivRoleImg === 0 ? "pass" : "fail",
+      nearbyDivRoleImg === 0
+        ? "Nearby cards use semantic <img> (not div background placeholders)."
+        : `${nearbyDivRoleImg} nearby card(s) still use <div role=\"img\"> — replace with <img>.`,
+    ),
+  );
+
+  const section1AmenityItems = (html.match(/<!-- SECTION 1[\s\S]*?<ul class="facility-list">([\s\S]*?)<\/ul>/i)?.[1]?.match(/<li>/gi) ?? []).length;
+  checks.push(
+    makeCheck(
+      "section1-amenity-count",
+      "Section 1 has 8–12 amenities",
+      section1AmenityItems >= 8 && section1AmenityItems <= 12
+        ? "pass"
+        : section1AmenityItems === 0
+          ? "fail"
+          : "warning",
+      section1AmenityItems === 0
+        ? "Section 1 amenity list is empty."
+        : `${section1AmenityItems} amenities in Section 1 (spec: 8–12 distinct).`,
+    ),
+  );
+
+  const localRefCount = mergeLocalReferences(project.localContext).length;
+  checks.push(
+    makeCheck(
+      "section4-local-places",
+      "Section 4 local references",
+      localRefCount >= 2 ? "pass" : "warning",
+      localRefCount >= 2
+        ? `${localRefCount} local reference(s) in project — verify 2–3 named places appear in Section 4 within 10 miles.`
+        : "Fewer than 2 local references — Section 4 needs 2–3 verified landmarks (harvest from raw content or add local context).",
     ),
   );
 
