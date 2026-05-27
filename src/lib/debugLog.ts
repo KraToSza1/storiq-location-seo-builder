@@ -6,10 +6,20 @@ export const isStorIqDebugEnabled = (): boolean => {
     return true;
   }
   try {
-    return localStorage.getItem("storiq-debug") === "1";
+    if (localStorage.getItem("storiq-debug") === "1") {
+      return true;
+    }
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("storiq-debug") === "1") {
+        localStorage.setItem("storiq-debug", "1");
+        return true;
+      }
+    }
   } catch {
     return false;
   }
+  return false;
 };
 
 export const debugLog = (scope: string, message: string, data?: unknown): void => {
@@ -55,12 +65,14 @@ export const debugTable = (scope: string, rows: Record<string, unknown>[]): void
 
 export const logStorIqDebugBanner = (): void => {
   if (!isStorIqDebugEnabled()) {
-    console.info(`${PREFIX} Debug logging OFF. Dev: auto-on. Production: localStorage.setItem("storiq-debug","1") then refresh.`);
+    console.info(
+      `${PREFIX} Debug logging OFF. Dev: auto-on. Production: add ?storiq-debug=1 to the URL or localStorage.setItem("storiq-debug","1") then refresh.`,
+    );
     return;
   }
   console.groupCollapsed(`${PREFIX} Debug logging ON — full app trace`);
   console.info("Filter DevTools console by: StorIQ");
   console.info("Scopes: UI:input | UI:paste | UI:copy | UI:button | FLOW# | prepareProject | validationGate | exportChecks");
-  console.info("Production: localStorage.setItem('storiq-debug','1'); location.reload();");
+  console.info("Production: ?storiq-debug=1 or localStorage.setItem('storiq-debug','1'); location.reload();");
   console.groupEnd();
 };
