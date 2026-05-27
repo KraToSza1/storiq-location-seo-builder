@@ -114,18 +114,16 @@ export const buildStorageImageAltText = (storageType: string, city: string, stat
   return place ? `${type} self storage units in ${place}` : `${type} self storage units`;
 };
 
-/** Section 1 lead — name street/highway from address when available. */
+/** Section 1 lead — street/place; avoids repeating full "My Garage | Branch" (that belongs in Section 7 NAP). */
 export const buildSection1IntroFallback = (
-  facilityName: string,
+  _facilityName: string,
   place: string,
   address: string,
   featureSummary: string,
 ): string => {
   const streetLead = address.split(",")[0]?.trim();
-  const locationLead = streetLead
-    ? `${facilityName} along ${streetLead} in ${place}`
-    : `${facilityName} in ${place}`;
-  return `${locationLead} offers ${featureSummary} designed to make your storage experience secure, convenient, and hassle-free.`;
+  const locationLead = streetLead ? `Along ${streetLead} in ${place}` : `In ${place}`;
+  return `${locationLead}, this location offers ${featureSummary} designed to make your storage experience secure, convenient, and hassle-free.`;
 };
 
 export const formatFacilityNameWithMark = (facilityName: string): string => {

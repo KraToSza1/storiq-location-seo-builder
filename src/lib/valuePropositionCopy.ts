@@ -1,3 +1,4 @@
+import { shortFacilityLabel } from "./facilityCopy";
 import type { LocationProject } from "../types/storiq";
 
 const cityState = (project: LocationProject): string =>
@@ -6,7 +7,7 @@ const cityState = (project: LocationProject): string =>
 /** Build "Feature: benefit copy" bullets for Section 2 export (matches client final.md). */
 export const describeFeatureBenefit = (feature: string, project: LocationProject): string => {
   const place = cityState(project);
-  const facility = project.locationIdentity.facilityName || "My Garage Self Storage";
+  const facility = shortFacilityLabel(project.locationIdentity.facilityName, project.locationIdentity.city);
   const normalized = feature.toLowerCase();
 
   if (normalized.includes("climate")) {

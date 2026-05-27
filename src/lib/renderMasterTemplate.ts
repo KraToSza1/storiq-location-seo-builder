@@ -2,6 +2,7 @@ import { DEFAULT_PUBLISH_ASSET_BASE, toAbsoluteMediaUrl } from "./assetUrls";
 import { defaultFacilities } from "./facilityLibrary";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { buildLocalSectionDraftBody, buildMapSectionDraftBody, generateDraftTitleTag } from "./draftGenerator";
+import { buildMapDirectionsCopy, splitAddressForNap, stripHoursSentencesFromMapCopy } from "./facilityCopy";
 import { resolveCanonicalStoragelyUrl } from "./facilityRegistry";
 import { buildFacilityWireframeHeadings, ensureValuePropositionOpening, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
 import {
@@ -70,7 +71,7 @@ const storageCardDescription = (image: StorageImage, project: LocationProject, i
   if (storageDraft?.bullets?.[index] && !isEditorInstruction(storageDraft.bullets[index])) {
     return storageDraft.bullets[index];
   }
-  return `${image.category} at ${project.locationIdentity.facilityName || "this facility"} supports local storage needs in ${cityState(project) || "the area"}.`;
+  return `${image.category} storage at this location supports local storage needs in ${cityState(project) || "the area"}.`;
 };
 
 const renderStorageCard = (
@@ -155,8 +156,11 @@ const renderLocalParagraphs = (project: LocationProject): string => {
 
 const renderMapDirections = (project: LocationProject): string => {
   const mapDraft = findDraftSection(project, "map-cta");
-  const body = exportDraftBody(mapDraft?.body, buildMapSectionDraftBody(project));
-  return body
+  const body = stripHoursSentencesFromMapCopy(
+    exportDraftBody(mapDraft?.body, buildMapSectionDraftBody(project)),
+  );
+  const directions = body.trim() || buildMapDirectionsCopy(project);
+  return directions
     .split(/\n{2,}/)
     .map((part) => part.trim())
     .filter(Boolean)
@@ -262,6 +266,13 @@ export const renderStoragelyHtml = (
     `Looking for self storage outside of ${city}? My Garage Self Storage® has multiple convenient locations across the region. Explore our nearby facilities below to find the right fit for your community.`,
   );
 
+  const nap = splitAddressForNap(project.existingContent.address, city, state, project.locationIdentity.zipCode);
+  const napStreetLine = nap.street || "Address required";
+  const napPlaceLine = nap.cityLine || place;
+  const napBlock = `<p><strong>${escapeHtml(facilityNameMarked)}</strong><br>
+        ${escapeHtml(napStreetLine)}<br>
+        ${escapeHtml(napPlaceLine)}</p>`;
+
   const documentHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -346,8 +357,7 @@ ${MASTER_TEMPLATE_CSS}
       </div>
       <div class="map-section__info">
         <h2>${escapeHtml(headings.map)}</h2>
-        <p><strong>${escapeHtml(facilityNameMarked)}</strong><br>
-        ${escapeHtml(project.existingContent.address || "Address required")}</p>
+        ${napBlock}
         ${renderMapDirections(project)}
         ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(project.existingContent.accessHours)}</p>` : ""}
         ${project.existingContent.officeHours ? `<p><strong>Office Hours:</strong> ${escapeHtml(project.existingContent.officeHours)}</p>` : ""}

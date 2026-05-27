@@ -1,5 +1,5 @@
 import {
-  collapseWhitespace,
+  branchLabelFromFacilityName,
   formatKeywordPhrase,
   formatPlaceTitleCase,
   isValidFaqCandidate,
@@ -11,6 +11,13 @@ import { extractFaqsFromRawContent } from "./contentExtraction";
 import { amenitiesForSection1, buildSection1IntroFallback, stripPromotionalLanguage, valueBulletsForSection2 } from "./myGarageGenerationSpec";
 import { debugLog, debugWarn } from "./debugLog";
 import { isEditorInstruction } from "./templateDraftUtils";
+import {
+  buildMapDirectionsCopy,
+  faqMatchesFacilityCapabilities,
+  facilityOffersClimateControlled,
+  facilityOffersVehicleStorage,
+  shortFacilityLabel,
+} from "./facilityCopy";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -52,14 +59,13 @@ const countWords = (text: string): number => text.trim().split(/\s+/).filter(Boo
 
 const buildLocalDraftBody = (
   project: LocationProject,
-  facilityName: string,
   place: string,
   localRefs: string[],
 ): string => {
   const { city, state } = project.locationIdentity;
   const address = project.existingContent.address?.trim();
   const paragraphs: string[] = [
-    `${facilityName} is proud to serve the ${place} community. Whether you are downsizing, renovating, or simply need extra space, our team understands the storage needs that come with life in ${formatPlaceTitleCase(city, state)}.`,
+    `We are proud to serve the ${place} community. Whether you are downsizing, renovating, or simply need extra space, our team understands the storage needs that come with life in ${formatPlaceTitleCase(city, state)}.`,
   ];
 
   if (localRefs.length > 0) {
@@ -78,12 +84,12 @@ const buildLocalDraftBody = (
   }
 
   paragraphs.push(
-    `From weekend projects and home cleanouts to business inventory and vehicle storage, ${facilityName} helps you keep ${place} living and working spaces clear without long-term commitments.`,
+    `From weekend projects and home cleanouts to business inventory and vehicle storage, we help you keep ${place} living and working spaces clear without long-term commitments.`,
   );
   paragraphs.push(
     address
-      ? `${facilityName} offers a straightforward rental experience with the features ${place} customers expect. Stop by ${address} to compare unit sizes, or reserve online when you are ready to move in.`
-      : `${facilityName} offers a straightforward rental experience with the features ${place} customers expect. Contact the facility to compare unit sizes and check current availability.`,
+      ? `This location offers a straightforward rental experience with the features ${place} customers expect. Stop by ${address} to compare unit sizes, or reserve online when you are ready to move in.`
+      : `This location offers a straightforward rental experience with the features ${place} customers expect. Contact us to compare unit sizes and check current availability.`,
   );
 
   let body = paragraphs.join("\n\n");
@@ -94,31 +100,28 @@ const buildLocalDraftBody = (
   return body;
 };
 
-const buildMapDraftBody = (project: LocationProject, facilityName: string, place: string): string => {
-  const address = project.existingContent.address?.trim() || place;
-  const officeHours =
-    collapseWhitespace(project.existingContent.officeHours?.trim() || "") || "contact the facility for current office hours";
-  const accessHours =
-    collapseWhitespace(project.existingContent.accessHours?.trim() || "") || "contact the facility for gate and access hours";
-
-  return `${facilityName} is located at ${address} in ${place}. Office hours: ${officeHours}. Access hours: ${accessHours}. Use the map for directions, then contact the facility or reserve online when you are ready to move in.`;
-};
+const buildMapDraftBody = (project: LocationProject): string => buildMapDirectionsCopy(project);
 
 export const buildLocalSectionDraftBody = (project: LocationProject): string => {
   const place = cityState(project);
-  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
   const localRefs = mergeLocalReferences(project.localContext);
-  return buildLocalDraftBody(project, facilityName, place, localRefs);
+  return buildLocalDraftBody(project, place, localRefs);
 };
 
-export const buildMapSectionDraftBody = (project: LocationProject): string => {
-  const place = cityState(project);
-  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
-  return buildMapDraftBody(project, facilityName, place);
-};
+export const buildMapSectionDraftBody = (project: LocationProject): string => buildMapDraftBody(project);
 
 export const isStaleDraftSection = (section: DraftSection): boolean =>
   isEditorInstruction(section.body) || section.bullets.some((bullet) => isEditorInstruction(bullet));
+
+const isLegacyDraftSection = (section: DraftSection): boolean => {
+  if (section.id === "map-cta" && /office hours|access hours/i.test(section.body)) {
+    return true;
+  }
+  if (["intro", "local", "storage", "value"].includes(section.id) && /My Garage Self Storage\s*\|/i.test(section.body)) {
+    return true;
+  }
+  return false;
+};
 
 /** Replace saved prompt/instruction text with generated wireframe copy. Keeps real user edits. */
 export const sanitizeDraftSections = (
@@ -137,7 +140,7 @@ export const sanitizeDraftSections = (
     if (!replacement) {
       return section;
     }
-    if (isStaleDraftSection(section)) {
+    if (isStaleDraftSection(section) || isLegacyDraftSection(section)) {
       debugLog("sanitizeDraftSections", `replaced stale section: ${section.id}`);
       return replacement;
     }
@@ -145,7 +148,13 @@ export const sanitizeDraftSections = (
   });
 };
 
-const adaptSourceFaq = (faq: { question: string; answer: string }, city: string, state: string): FaqItem | undefined => {
+const adaptSourceFaq = (
+  faq: { question: string; answer: string },
+  city: string,
+  state: string,
+  project: LocationProject,
+  images: StorageImage[],
+): FaqItem | undefined => {
   const question = stripPromotionalLanguage(faq.question.trim());
   const answer = stripPromotionalLanguage(faq.answer.trim());
   if (!isValidFaqCandidate(question, answer)) {
@@ -156,7 +165,11 @@ const adaptSourceFaq = (faq: { question: string; answer: string }, city: string,
   const normalizedQuestion = qLower.includes(place.toLowerCase())
     ? question
     : `${question.replace(/\s*\?*$/, "")} in ${place}?`;
-  return { question: normalizedQuestion, answer };
+  const item = { question: normalizedQuestion, answer };
+  if (!faqMatchesFacilityCapabilities(item, project, images)) {
+    return undefined;
+  }
+  return item;
 };
 
 const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage[], placeLabel: string): FaqItem[] => {
@@ -168,7 +181,8 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
   const address = project.existingContent.address || "the address listed on this page";
   const officeHours = project.existingContent.officeHours || "available by phone — contact us for current office hours";
   const accessHours = project.existingContent.accessHours || "available by phone — contact us for gate and access hours";
-  const featureText = project.existingContent.features.join(" ").toLowerCase();
+  const hasClimate = facilityOffersClimateControlled(project, images);
+  const hasVehicle = facilityOffersVehicleStorage(project, images);
   const pool: FaqItem[] = [
     {
       question: `What unit sizes and storage types are available in ${placeLabel}?`,
@@ -196,20 +210,20 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
     },
   ];
 
-  if (featureText.includes("climate")) {
+  if (hasClimate) {
     pool.unshift({
       question: `Does this location offer climate-controlled storage in ${placeLabel}?`,
-      answer: `Yes — climate-controlled options may be available at this property. Confirm unit availability with our team before move-in.`,
+      answer: `Yes — climate-controlled storage is available at this property. Contact our team to confirm unit sizes and availability before move-in.`,
     });
   }
-  if (featureText.includes("rv") || featureText.includes("boat") || types.some((t) => /rv|boat/i.test(t))) {
+  if (hasVehicle) {
     pool.unshift({
-      question: `Can I store an RV or boat in ${placeLabel}?`,
-      answer: `Vehicle storage options may be available in ${placeLabel}. Contact us to confirm outdoor, covered, or enclosed vehicle storage based on your needs.`,
+      question: `Can I store an RV, boat, or vehicle in ${placeLabel}?`,
+      answer: `Yes — vehicle storage options are available at this location. Contact us to confirm outdoor, covered, or enclosed parking based on your needs.`,
     });
   }
 
-  return pool;
+  return pool.filter((faq) => faqMatchesFacilityCapabilities(faq, project, images));
 };
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
@@ -218,7 +232,7 @@ export const generateDraftFaqs = (project: LocationProject, images: StorageImage
   debugLog("generateDraftFaqs", "raw scraped FAQs", { count: rawFaqs.length, questions: rawFaqs.map((f) => f.question) });
 
   const sourceFaqs = rawFaqs
-    .map((faq) => adaptSourceFaq(faq, city, state))
+    .map((faq) => adaptSourceFaq(faq, city, state, project, images))
     .filter((faq): faq is FaqItem => Boolean(faq));
   const featureFaqs = buildFacilityFeatureFaqs(project, images, formatPlaceTitleCase(city, state));
   const merged: FaqItem[] = [];
@@ -251,7 +265,9 @@ export const sanitizeDraftFaqs = (project: LocationProject, faqs: FaqItem[], ima
   if (rejected.length > 0) {
     debugWarn("sanitizeDraftFaqs", "rejected invalid FAQs — will regenerate", rejected);
   }
-  const cleaned = faqs.filter((faq) => isValidFaqCandidate(faq.question, faq.answer));
+  const cleaned = faqs
+    .filter((faq) => isValidFaqCandidate(faq.question, faq.answer))
+    .filter((faq) => faqMatchesFacilityCapabilities(faq, project, images));
   if (cleaned.length >= 6) {
     return cleaned.slice(0, 6);
   }
@@ -259,6 +275,7 @@ export const sanitizeDraftFaqs = (project: LocationProject, faqs: FaqItem[], ima
   const merged: FaqItem[] = [...cleaned];
   fresh.forEach((faq) => {
     if (merged.length >= 6) return;
+    if (!faqMatchesFacilityCapabilities(faq, project, images)) return;
     if (!merged.some((item) => item.question.toLowerCase() === faq.question.toLowerCase())) {
       merged.push(faq);
     }
@@ -274,7 +291,6 @@ export const generateDraftSections = (
 ): DraftSection[] => {
   const { city, state } = project.locationIdentity;
   const place = cityState(project);
-  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
   const headings = buildFacilityWireframeHeadings(city, state, place);
   const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
   const valueBullets = buildValueBullets(project);
@@ -282,17 +298,20 @@ export const generateDraftSections = (
   const localRefs = mergeLocalReferences(project.localContext);
   const nearby = selectedFacilities(project, facilities);
   const nearbyText = sentenceList(
-    nearby.map((facility) => `${facility.facilityName} in ${facility.city}`),
+    nearby.map((facility) => {
+      const branch = branchLabelFromFacilityName(facility.facilityName);
+      return branch ? `${branch} in ${facility.city}` : `${facility.city}, ${facility.state}`;
+    }),
     "three nearby My Garage locations",
   );
 
   const storageDescriptions = storageTypes.map(
-    (type) => `${type} at ${facilityName} can help customers in ${place} store belongings with a layout suited to that storage category.`,
+    (type) => `${type} at this location helps customers in ${place} store belongings with a layout suited to that storage category.`,
   );
   const typesText = storageTypes.length > 0 ? sentenceList(storageTypes, "flexible storage options") : "flexible storage options";
   const featureSummary = sentenceList(project.existingContent.features.slice(0, 4), "practical storage amenities");
   const section1Intro = buildSection1IntroFallback(
-    facilityName,
+    project.locationIdentity.facilityName,
     place,
     project.existingContent.address,
     featureSummary,
@@ -319,15 +338,15 @@ export const generateDraftSections = (
       heading: headings.storage,
       body:
         storageTypes.length > 0
-          ? `${facilityName} in ${place} offers ${typesText} to match different storage needs. Compare unit sizes, features, and access options to find the layout that works best for your belongings.`
-          : `${facilityName} serves ${place} with flexible storage options for household, business, and vehicle storage.`,
+          ? `This location offers ${typesText} to match different storage needs in ${place}. Compare unit sizes, features, and access options to find the layout that works best for your belongings.`
+          : `This location serves ${place} with flexible storage options for household, business, and vehicle storage.`,
       bullets: storageDescriptions.length > 0 ? storageDescriptions : storageTypes,
     },
     {
       id: "local",
       label: "Section 4",
       heading: headings.local,
-      body: buildLocalDraftBody(project, facilityName, place, localRefs),
+      body: buildLocalDraftBody(project, place, localRefs),
       bullets: localRefs.slice(0, 6),
     },
     {
@@ -338,7 +357,10 @@ export const generateDraftSections = (
         nearby.length > 0
           ? `Looking for self storage outside of ${city}? My Garage Self Storage® has multiple convenient locations across the region, including options near ${nearbyText}. Explore our nearby facilities below to find the right fit for your community.`
           : `Looking for self storage outside of ${city}? My Garage Self Storage® has multiple convenient locations across the region.`,
-      bullets: nearby.map((facility) => `${facility.facilityName} — ${facility.city}, ${facility.state}`),
+      bullets: nearby.map((facility) => {
+        const branch = branchLabelFromFacilityName(facility.facilityName);
+        return branch ? `${branch} — ${facility.city}, ${facility.state}` : `${facility.city}, ${facility.state}`;
+      }),
     },
     {
       id: "faqs",
@@ -351,7 +373,7 @@ export const generateDraftSections = (
       id: "map-cta",
       label: "Section 7",
       heading: headings.map,
-      body: buildMapDraftBody(project, facilityName, place),
+      body: buildMapDraftBody(project),
       bullets: [project.existingContent.address, project.existingContent.phone, project.locationIdentity.storagelyPageUrl].filter(
         Boolean,
       ),
@@ -366,9 +388,9 @@ export const generateDraftTitleTag = (project: LocationProject): string => {
 
 export const generateDraftMetaDescription = (project: LocationProject): string => {
   const place = cityState(project);
-  const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
+  const shortLabel = shortFacilityLabel(project.locationIdentity.facilityName, project.locationIdentity.city);
   const feature = project.existingContent.features[0] || "convenient storage features";
-  const description = `${facilityName} offers ${project.seo.primaryKeyword || `self storage in ${place}`} with ${feature}. View hours, storage types, and nearby My Garage locations in ${place}.`;
+  const description = `My Garage Self Storage® at ${shortLabel} offers ${project.seo.primaryKeyword || `self storage in ${place}`} with ${feature}. View hours, storage types, and nearby locations in ${place}.`;
   return description.slice(0, 156);
 };
 
