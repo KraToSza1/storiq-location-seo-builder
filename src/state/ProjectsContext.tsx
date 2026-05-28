@@ -31,6 +31,7 @@ import { buildAiPrompt } from "../lib/promptBuilder";
 import { resolvePublishAssetBaseUrl } from "../lib/assetUrls";
 import { cloneProject, defaultSettings, mergeWithProjectDefaults } from "../lib/projectDefaults";
 import { runSEOAudit } from "../lib/seoAudit";
+import { normalizeGoogleMapsEmbedCode, resolveMapEmbedRaw } from "../lib/googleMapsEmbed";
 import { logStep3StorageContext } from "../lib/storageTypeFidelity";
 import { renderFaqJsonLd, renderStoragelyHtml } from "../lib/templateRenderer";
 import { debugLog, debugWarn } from "../lib/debugLog";
@@ -107,6 +108,29 @@ export const prepareProject = (
   });
 
   const publishAssetBaseUrl = resolvePublishAssetBaseUrl(settings);
+  const mapTitle = `Map to ${project.locationIdentity.facilityName || "facility"}`;
+  const normalizedMap = normalizeGoogleMapsEmbedCode(resolveMapEmbedRaw(project.googleMaps), mapTitle);
+  if (
+    normalizedMap.iframeCode !== project.googleMaps.iframeCode ||
+    normalizedMap.detectedSrc !== project.googleMaps.detectedSrc ||
+    normalizedMap.isValid !== project.googleMaps.isValid
+  ) {
+    project = {
+      ...project,
+      googleMaps: {
+        ...project.googleMaps,
+        iframeCode: normalizedMap.iframeCode,
+        detectedSrc: normalizedMap.detectedSrc,
+        isValid: normalizedMap.isValid,
+      },
+    };
+    debugLog("prepareProject", "normalized Google Maps embed", {
+      isValid: normalizedMap.isValid,
+      isOfficial: normalizedMap.isOfficial,
+      detectedSrc: normalizedMap.detectedSrc.slice(0, 80),
+    });
+  }
+
   logStep3StorageContext("prepareProject", project, images);
   const incomingGenerated = project.generated;
   const validation = getProjectValidation(project, facilities, images);

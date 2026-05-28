@@ -1,15 +1,16 @@
+import {
+  mapEmbedValidationMessage,
+  normalizeGoogleMapsEmbedCode,
+  resolveMapEmbedRaw,
+  type GoogleMapsParseResult,
+} from "./googleMapsEmbed";
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import { getNearbySelectionLimits, isNearbySelectionCountValid, selectedNearbyOutsideProximity } from "./nearbySuggestions";
 import type { LocationProject, NearbyFacility, StorageImage, ValidationIssue } from "../types/storiq";
 
-export interface GoogleMapsParseResult {
-  isValid: boolean;
-  detectedSrc: string;
-  hasLazyLoading: boolean;
-  hasTitle: boolean;
-  hasReferrerPolicy: boolean;
-}
+export type { GoogleMapsParseResult };
+export { parseGoogleMapsIframe } from "./googleMapsEmbed";
 
 /** Strip scoped CSS before scanning — avoids false positives on class names like map-placeholder. */
 export const htmlContentForPlaceholderScan = (html: string): string => html.replace(/<style[\s\S]*?<\/style>/gi, "");
@@ -20,20 +21,6 @@ export const hasUnresolvedPlaceholderInHtml = (html: string): boolean => {
     /\[(?:City|State|ZIP|Address|Phone|Keyword|PLACEHOLDER)\]|REPLACE_WITH_URL|TODO|INSERT_/i.test(content) ||
     /\bundefined\b|\bnull\b/i.test(content)
   );
-};
-
-export const parseGoogleMapsIframe = (iframeCode: string): GoogleMapsParseResult => {
-  const iframeMatch = iframeCode.match(/<iframe\b[\s\S]*?>[\s\S]*?<\/iframe>/i);
-  const iframeTag = iframeMatch?.[0] ?? "";
-  const src = iframeTag.match(/\ssrc=["']([^"']+)["']/i)?.[1] ?? "";
-
-  return {
-    isValid: Boolean(iframeMatch && src),
-    detectedSrc: src,
-    hasLazyLoading: /\sloading=["']lazy["']/i.test(iframeTag),
-    hasTitle: /\stitle=["'][^"']+["']/i.test(iframeTag),
-    hasReferrerPolicy: /\sreferrerpolicy=["'][^"']+["']/i.test(iframeTag),
-  };
 };
 
 const requiredIssue = (id: string, label: string, message: string): ValidationIssue => ({
@@ -58,7 +45,8 @@ export const getProjectValidation = (
   const hardFails: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
   const { locationIdentity, seo, existingContent, googleMaps } = project;
-  const map = parseGoogleMapsIframe(googleMaps.iframeCode);
+  const mapTitle = `Map to ${locationIdentity.facilityName || "facility"}`;
+  const normalizedMap = normalizeGoogleMapsEmbedCode(resolveMapEmbedRaw(googleMaps), mapTitle);
 
   if (!locationIdentity.city.trim()) hardFails.push(requiredIssue("city", "City", "City is required."));
   if (!locationIdentity.state.trim()) hardFails.push(requiredIssue("state", "State", "State is required."));
@@ -78,8 +66,14 @@ export const getProjectValidation = (
   if (!existingContent.address.trim()) {
     hardFails.push(requiredIssue("address", "Address", "Facility address is required."));
   }
-  if (!map.isValid) {
-    hardFails.push(requiredIssue("mapsIframe", "Google Maps iframe", "A valid Google Maps iframe is required."));
+  if (!normalizedMap.isValid) {
+    hardFails.push(
+      requiredIssue(
+        "mapsIframe",
+        "Google Maps iframe",
+        mapEmbedValidationMessage(normalizedMap) || "A valid Google Maps iframe is required.",
+      ),
+    );
   }
   if (project.selectedStorageImages.length === 0) {
     hardFails.push(requiredIssue("storageTypes", "Storage types", "Select at least one storage type card."));
@@ -135,10 +129,10 @@ export const getProjectValidation = (
   if (!project.generated.html.trim()) {
     warnings.push(warningIssue("htmlGenerated", "HTML", "HTML has not been generated yet."));
   }
-  if (googleMaps.iframeCode.trim() && !map.hasLazyLoading) {
+  if (normalizedMap.isOfficial && !normalizedMap.hasLazyLoading) {
     warnings.push(warningIssue("mapLazy", "Map loading", "Google Maps iframe is missing loading=\"lazy\"."));
   }
-  if (googleMaps.iframeCode.trim() && !map.hasTitle) {
+  if (normalizedMap.isOfficial && !normalizedMap.hasTitle) {
     warnings.push(warningIssue("mapTitle", "Map title", "Google Maps iframe is missing a title attribute."));
   }
 

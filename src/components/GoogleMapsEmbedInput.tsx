@@ -1,5 +1,5 @@
 import { MapPin } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { debugLog, debugWarn } from "../lib/debugLog";
 import { debugFlow } from "../lib/debugUi";
 import {
@@ -9,6 +9,8 @@ import {
   isLegacyMapEmbedSrc,
   isMalformedSyntheticEmbed,
   isOfficialGoogleMapsEmbedSrc,
+  normalizeGoogleMapsEmbedCode,
+  resolveMapEmbedRaw,
   resolveMapDisplayType,
   type MapDisplayType,
 } from "../lib/googleMapsEmbed";
@@ -40,32 +42,53 @@ export default function GoogleMapsEmbedInput({
   );
 
   const applyIframe = (iframeCode: string) => {
-    const next = parseGoogleMapsIframe(iframeCode);
-    const official = next.detectedSrc ? isOfficialGoogleMapsEmbedSrc(next.detectedSrc) : false;
-    const malformed = next.detectedSrc ? isMalformedSyntheticEmbed(next.detectedSrc) : false;
-    const legacy = next.detectedSrc ? isLegacyMapEmbedSrc(next.detectedSrc) : false;
+    const normalized = normalizeGoogleMapsEmbedCode(iframeCode, previewTitle);
+    const malformed = normalized.detectedSrc ? isMalformedSyntheticEmbed(normalized.detectedSrc) : false;
+    const legacy = normalized.detectedSrc ? isLegacyMapEmbedSrc(normalized.detectedSrc) : false;
 
     debugLog("GoogleMapsEmbed", "iframe updated", {
-      isValid: next.isValid,
-      official,
+      isValid: normalized.isValid,
+      official: normalized.isOfficial,
       malformed,
       legacy,
-      detectedSrc: next.detectedSrc?.slice(0, 100),
+      detectedSrc: normalized.detectedSrc?.slice(0, 100),
     });
 
     if (malformed) {
-      debugWarn("GoogleMapsEmbed", "rejecting synthetic pb= embed (0x0:0x0) — paste official Share → Embed", {
-        detectedSrc: next.detectedSrc?.slice(0, 120),
+      debugWarn("GoogleMapsEmbed", "synthetic pb= embed — paste official Share → Embed", {
+        detectedSrc: normalized.detectedSrc?.slice(0, 120),
       });
     }
 
     onChange({
-      iframeCode,
-      detectedSrc: next.detectedSrc,
-      isValid: next.isValid && official,
+      iframeCode: normalized.iframeCode,
+      detectedSrc: normalized.detectedSrc,
+      isValid: normalized.isValid,
       mapType,
     });
   };
+
+  useEffect(() => {
+    const raw = resolveMapEmbedRaw(project.googleMaps);
+    if (!raw) {
+      return;
+    }
+    const normalized = normalizeGoogleMapsEmbedCode(raw, previewTitle);
+    if (
+      normalized.isOfficial &&
+      (normalized.iframeCode !== project.googleMaps.iframeCode ||
+        normalized.detectedSrc !== project.googleMaps.detectedSrc ||
+        !project.googleMaps.isValid)
+    ) {
+      debugLog("GoogleMapsEmbed", "auto-normalized saved embed on load", { isValid: normalized.isValid });
+      onChange({
+        iframeCode: normalized.iframeCode,
+        detectedSrc: normalized.detectedSrc,
+        isValid: normalized.isValid,
+        mapType,
+      });
+    }
+  }, [project.id, project.googleMaps.iframeCode, project.googleMaps.detectedSrc, project.googleMaps.isValid, previewTitle, mapType, onChange]);
 
   const setMapType = (nextMapType: MapDisplayType) => {
     debugFlow("GoogleMapsEmbed", `mapType → ${nextMapType} (preview only for legacy q= URLs)`);
