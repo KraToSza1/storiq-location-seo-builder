@@ -1,6 +1,7 @@
 import { defaultImages, getStorageImageById } from "./imageLibrary";
 import { defaultFacilities } from "./facilityLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
+import { selectedStorageCategories } from "./storageTypeFidelity";
 import systemPrompt from "../spec/system-prompt-v2.md?raw";
 import type { LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -57,8 +58,8 @@ ${project.existingContent.rawContent || "MISSING"}
 FEATURES & AMENITIES (8–12 for Section 1)
 ${lines(project.existingContent.features)}
 
-STORAGE TYPES OFFERED
-${lines(project.existingContent.storageTypes)}
+STORAGE TYPES (Step 3 — mention ONLY these in all copy; ignore types named in raw source unless listed here)
+${lines(selectedStorageCategories(project, images))}
 
 SELECTED STORAGE TYPE CARDS (Image Library)
 ${selectedStorage || "- None selected"}
@@ -86,6 +87,7 @@ ${project.googleMaps.iframeCode || "MISSING"}
 ENGINEER NOTE (before portfolio-wide SelfStorage JSON-LD): view-source a live Storagely location page and confirm Storagely is NOT already injecting facility/LocalBusiness/SelfStorage schema. If it is, do not duplicate — reconcile first.
 
 OUTPUT RULES
+- Storage types: mention only categories listed under STORAGE TYPES (Step 3). Do not add RV, boat, climate-controlled, vehicle, or other types from raw source unless they appear in that list.
 - Emit HTML only (or [GENERATION BLOCKED] if required inputs / hard rules fail).
 - Do NOT output <meta name="description"> (out of scope).
 - Section 5: <img class="location-card__image"> only — no CSS background-image / --img-loc-* tokens.

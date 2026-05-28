@@ -1,17 +1,21 @@
+import { debugWarn } from "./debugLog";
 import { generateDraftFaqs } from "./draftGenerator";
 import { defaultImages } from "./imageLibrary";
 import { buildStorageImageAltText } from "./myGarageGenerationSpec";
+import { filterFaqsByStep3, partitionFaqsByStep3 } from "./storageTypeFidelity";
 import type { FaqItem, LocationProject, StorageImage } from "../types/storiq";
 
 export const buildStorageImageAlt = (image: StorageImage, project: LocationProject): string =>
   buildStorageImageAltText(image.category, project.locationIdentity.city, project.locationIdentity.state);
 
 export const buildFaqItems = (project: LocationProject, images: StorageImage[] = defaultImages): FaqItem[] => {
-  if (project.generated.draftFaqs.length > 0) {
-    return project.generated.draftFaqs;
+  const source =
+    project.generated.draftFaqs.length > 0 ? project.generated.draftFaqs : generateDraftFaqs(project, images);
+  const { kept, rejected } = partitionFaqsByStep3(source, project, images);
+  if (rejected.length > 0) {
+    debugWarn("buildFaqItems", "export blocked FAQs removed at render", { count: rejected.length, rejected });
   }
-
-  return generateDraftFaqs(project, images);
+  return filterFaqsByStep3(kept, project, images).slice(0, 6);
 };
 
 export const renderFaqJsonLd = (project: LocationProject, images: StorageImage[] = defaultImages): string => {

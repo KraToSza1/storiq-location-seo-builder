@@ -1,4 +1,6 @@
 import { RefreshCw } from "lucide-react";
+import { debugLog } from "../lib/debugLog";
+import { logButtonClick } from "../lib/debugUi";
 import { generateDraftFaqs } from "../lib/draftGenerator";
 import { TextArea } from "./FormControls";
 import type { FaqItem, LocationProject, StorageImage } from "../types/storiq";
@@ -15,7 +17,10 @@ export default function FaqEditor({
   onChange: (faqs: FaqItem[]) => void;
 }) {
   const regenerate = () => {
-    onChange(generateDraftFaqs(project, images));
+    logButtonClick("Regenerate FAQs");
+    const next = generateDraftFaqs(project, images);
+    debugLog("FaqEditor", "regenerate complete", { count: next.length, questions: next.map((f) => f.question) });
+    onChange(next);
   };
 
   const updateFaq = (index: number, field: keyof FaqItem, value: string) => {

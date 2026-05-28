@@ -296,6 +296,7 @@ export default function LocationWorkspace() {
             </div>
             <StorageTypeSelector
               selectedIds={project.selectedStorageImages}
+              project={project}
               onChange={(selectedStorageImages) => save((current) => ({ ...current, selectedStorageImages }))}
             />
           </section>

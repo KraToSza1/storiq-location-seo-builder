@@ -230,6 +230,7 @@ export default function LocationWizard() {
         <WizardStep title="Step 3: Storage Types" description="Select storage type image cards from the master library for this location page.">
           <StorageTypeSelector
             selectedIds={project.selectedStorageImages}
+            project={project}
             onChange={(selectedStorageImages) => setProject((current) => ({ ...current, selectedStorageImages }))}
           />
         </WizardStep>

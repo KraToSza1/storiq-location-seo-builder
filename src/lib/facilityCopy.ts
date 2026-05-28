@@ -1,11 +1,23 @@
 import { mergeLocalReferences } from "./localContextUtils";
 import { branchLabelFromFacilityName, formatPlaceTitleCase } from "./contentQuality";
-import { getStorageImageById } from "./imageLibrary";
 import { formatFacilityNameWithMark } from "./myGarageGenerationSpec";
 import type { FaqItem, LocationProject, StorageImage } from "../types/storiq";
+import {
+  copyMatchesSelectedStorageTypes,
+  facilityOffersClimateControlled,
+  facilityOffersVehicleStorage,
+  faqMentionsClimate,
+  faqMentionsVehicleTopic,
+  selectedStorageCategories,
+} from "./storageTypeFidelity";
 
-const CLIMATE_PATTERN = /\bclimate[-\s]?controlled\b/i;
-const VEHICLE_PATTERN = /\b(rv|boat|vehicle|parking|trailer)\b/i;
+export {
+  facilityOffersClimateControlled,
+  facilityOffersVehicleStorage,
+  faqMentionsClimate,
+  faqMentionsVehicleTopic,
+  selectedStorageCategories,
+};
 
 export const shortFacilityLabel = (facilityName: string, city?: string): string => {
   const branch = branchLabelFromFacilityName(facilityName);
@@ -19,52 +31,20 @@ export const shortFacilityLabel = (facilityName: string, city?: string): string 
   return city ? `our ${city} location` : "this location";
 };
 
-export const selectedStorageCategories = (project: LocationProject, images: StorageImage[]): string[] =>
-  project.selectedStorageImages
-    .map((id) => getStorageImageById(images, id)?.category)
-    .filter((category): category is string => Boolean(category));
-
-export const facilityOffersClimateControlled = (project: LocationProject, images: StorageImage[]): boolean => {
-  const categories = selectedStorageCategories(project, images);
-  if (categories.some((c) => CLIMATE_PATTERN.test(c))) {
-    return true;
-  }
-  const offered = project.existingContent.storageTypes.join(" ");
-  if (CLIMATE_PATTERN.test(offered)) {
-    return true;
-  }
-  const features = project.existingContent.features.join(" ");
-  if (/\bnon[-\s]?climate\b/i.test(features)) {
-    return false;
-  }
-  return CLIMATE_PATTERN.test(features);
-};
-
-export const facilityOffersVehicleStorage = (project: LocationProject, images: StorageImage[]): boolean => {
-  const categories = selectedStorageCategories(project, images);
-  if (categories.some((c) => /vehicle/i.test(c))) {
-    return true;
-  }
-  const offered = `${project.existingContent.storageTypes.join(" ")} ${project.existingContent.features.join(" ")}`;
-  return VEHICLE_PATTERN.test(offered);
-};
-
-export const faqMentionsClimate = (question: string, answer: string): boolean =>
-  CLIMATE_PATTERN.test(question) || CLIMATE_PATTERN.test(answer);
-
-export const faqMentionsVehicleStorage = (question: string, answer: string): boolean =>
-  VEHICLE_PATTERN.test(question) || VEHICLE_PATTERN.test(answer);
-
-/** Drop FAQs that claim amenities this location does not offer. */
+/** Drop FAQs that claim storage types not selected in Step 3. */
 export const faqMatchesFacilityCapabilities = (
   faq: FaqItem,
   project: LocationProject,
   images: StorageImage[],
 ): boolean => {
+  const combined = `${faq.question} ${faq.answer}`;
+  if (!copyMatchesSelectedStorageTypes(combined, project, images)) {
+    return false;
+  }
   if (faqMentionsClimate(faq.question, faq.answer) && !facilityOffersClimateControlled(project, images)) {
     return false;
   }
-  if (faqMentionsVehicleStorage(faq.question, faq.answer) && !facilityOffersVehicleStorage(project, images)) {
+  if (faqMentionsVehicleTopic(faq.question, faq.answer) && !facilityOffersVehicleStorage(project, images)) {
     return false;
   }
   return true;

@@ -5,11 +5,10 @@ import {
   isValidFaqCandidate,
 } from "./contentQuality";
 import { buildFacilityWireframeHeadings, VALUE_PROPOSITION_OPENING } from "./facilityWireframe";
-import { getStorageImageById } from "./imageLibrary";
 import { mergeLocalReferences } from "./localContextUtils";
 import { extractFaqsFromRawContent } from "./contentExtraction";
 import { amenitiesForSection1, buildSection1IntroFallback, stripPromotionalLanguage, valueBulletsForSection2 } from "./myGarageGenerationSpec";
-import { debugLog, debugWarn } from "./debugLog";
+import { debugLog, debugTable, debugWarn } from "./debugLog";
 import { isEditorInstruction } from "./templateDraftUtils";
 import {
   buildMapDirectionsCopy,
@@ -18,6 +17,14 @@ import {
   facilityOffersVehicleStorage,
   shortFacilityLabel,
 } from "./facilityCopy";
+import {
+  buildStorageUseCasePhrase,
+  filterFaqsByStep3,
+  filterFeaturesBySelectedStorageTypes,
+  logStep3StorageContext,
+  partitionFaqsByStep3,
+  selectedStorageCategories,
+} from "./storageTypeFidelity";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -36,23 +43,19 @@ const selectedFacilities = (project: LocationProject, facilities: NearbyFacility
     .map((id) => facilities.find((facility) => facility.id === id))
     .filter((facility): facility is NearbyFacility => Boolean(facility));
 
-const selectedStorageTypes = (project: LocationProject, images: StorageImage[]): string[] =>
-  project.selectedStorageImages
-    .map((id) => getStorageImageById(images, id)?.category)
-    .filter((category): category is string => Boolean(category));
-
-const buildValueBullets = (project: LocationProject): string[] => {
-  const unique = [...new Set(project.existingContent.features.filter(Boolean))];
+const buildValueBullets = (project: LocationProject, images: StorageImage[]): string[] => {
+  const selected = selectedStorageCategories(project, images);
+  const unique = [...new Set(filterFeaturesBySelectedStorageTypes(project.existingContent.features.filter(Boolean), selected))];
 
   if (unique.length === 0) {
     return [
-      formatValueBullet("Convenient Location", project),
-      formatValueBullet("Secure Gated Access", project),
-      formatValueBullet("Flexible Month-to-Month Rentals", project),
+      formatValueBullet("Convenient Location", project, images),
+      formatValueBullet("Secure Gated Access", project, images),
+      formatValueBullet("Flexible Month-to-Month Rentals", project, images),
     ];
   }
 
-  return valueBulletsForSection2(unique.map((feature) => formatValueBullet(feature, project)));
+  return valueBulletsForSection2(unique.map((feature) => formatValueBullet(feature, project, images)));
 };
 
 const countWords = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length;
@@ -61,7 +64,9 @@ const buildLocalDraftBody = (
   project: LocationProject,
   place: string,
   localRefs: string[],
+  images: StorageImage[],
 ): string => {
+  const useCases = buildStorageUseCasePhrase(selectedStorageCategories(project, images));
   const { city, state } = project.locationIdentity;
   const address = project.existingContent.address?.trim();
   const paragraphs: string[] = [
@@ -84,7 +89,7 @@ const buildLocalDraftBody = (
   }
 
   paragraphs.push(
-    `From weekend projects and home cleanouts to business inventory and vehicle storage, we help you keep ${place} living and working spaces clear without long-term commitments.`,
+    `From weekend projects and home cleanouts to ${useCases} storage needs, we help you keep ${place} living and working spaces clear without long-term commitments.`,
   );
   paragraphs.push(
     address
@@ -102,10 +107,10 @@ const buildLocalDraftBody = (
 
 const buildMapDraftBody = (project: LocationProject): string => buildMapDirectionsCopy(project);
 
-export const buildLocalSectionDraftBody = (project: LocationProject): string => {
+export const buildLocalSectionDraftBody = (project: LocationProject, images: StorageImage[]): string => {
   const place = cityState(project);
   const localRefs = mergeLocalReferences(project.localContext);
-  return buildLocalDraftBody(project, place, localRefs);
+  return buildLocalDraftBody(project, place, localRefs, images);
 };
 
 export const buildMapSectionDraftBody = (project: LocationProject): string => buildMapDraftBody(project);
@@ -173,9 +178,10 @@ const adaptSourceFaq = (
 };
 
 const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage[], placeLabel: string): FaqItem[] => {
-  const types = selectedStorageTypes(project, images);
+  const types = selectedStorageCategories(project, images);
   const typesText = types.length > 0 ? types.join(", ") : "multiple unit sizes and storage layouts";
-  const features = sentenceList(project.existingContent.features.slice(0, 4), "gated access, flexible rentals, and secure storage");
+  const gatedFeatures = filterFeaturesBySelectedStorageTypes(project.existingContent.features, types);
+  const features = sentenceList(gatedFeatures.slice(0, 4), "gated access, flexible rentals, and secure storage");
   const localRefs = mergeLocalReferences(project.localContext);
   const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, placeLabel) : placeLabel;
   const address = project.existingContent.address || "the address listed on this page";
@@ -183,6 +189,11 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
   const accessHours = project.existingContent.accessHours || "available by phone — contact us for gate and access hours";
   const hasClimate = facilityOffersClimateControlled(project, images);
   const hasVehicle = facilityOffersVehicleStorage(project, images);
+  debugLog("buildFacilityFeatureFaqs", "template FAQ flags", {
+    selectedTypes: types,
+    addClimateFaq: hasClimate,
+    addVehicleFaq: hasVehicle,
+  });
   const pool: FaqItem[] = [
     {
       question: `What unit sizes and storage types are available in ${placeLabel}?`,
@@ -228,13 +239,36 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
 
 export const generateDraftFaqs = (project: LocationProject, images: StorageImage[]): FaqItem[] => {
   const { city, state } = project.locationIdentity;
+  logStep3StorageContext("generateDraftFaqs", project, images, { phase: "start" });
+
   const rawFaqs = extractFaqsFromRawContent(project.existingContent.rawContent);
   debugLog("generateDraftFaqs", "raw scraped FAQs", { count: rawFaqs.length, questions: rawFaqs.map((f) => f.question) });
 
   const sourceFaqs = rawFaqs
-    .map((faq) => adaptSourceFaq(faq, city, state, project, images))
+    .map((faq) => {
+      const adapted = adaptSourceFaq(faq, city, state, project, images);
+      if (!adapted) {
+        const rejected = partitionFaqsByStep3(
+          [{ question: faq.question, answer: faq.answer }],
+          project,
+          images,
+        ).rejected;
+        if (rejected.length > 0) {
+          debugWarn("generateDraftFaqs", "scraped FAQ rejected", rejected[0]);
+        } else {
+          debugWarn("generateDraftFaqs", "scraped FAQ rejected (invalid candidate)", { question: faq.question });
+        }
+      }
+      return adapted;
+    })
     .filter((faq): faq is FaqItem => Boolean(faq));
+
   const featureFaqs = buildFacilityFeatureFaqs(project, images, formatPlaceTitleCase(city, state));
+  debugLog("generateDraftFaqs", "template FAQs built", {
+    count: featureFaqs.length,
+    questions: featureFaqs.map((f) => f.question),
+  });
+
   const merged: FaqItem[] = [];
 
   sourceFaqs.forEach((faq) => {
@@ -251,37 +285,63 @@ export const generateDraftFaqs = (project: LocationProject, images: StorageImage
     }
   });
 
-  debugLog("generateDraftFaqs", "merged FAQs", {
+  const { kept, rejected } = partitionFaqsByStep3(merged, project, images);
+  if (rejected.length > 0) {
+    debugWarn("generateDraftFaqs", "merged FAQs blocked by Step 3 gate", { count: rejected.length });
+    debugTable("generateDraftFaqs:rejected", rejected);
+  }
+
+  const final = filterFaqsByStep3(kept, project, images).slice(0, 6);
+  debugLog("generateDraftFaqs", "done", {
     fromSource: sourceFaqs.length,
-    total: merged.length,
-    questions: merged.map((f) => f.question),
+    fromTemplates: featureFaqs.length,
+    mergedBeforeGate: merged.length,
+    rejectedByGate: rejected.length,
+    finalCount: final.length,
+    questions: final.map((f) => f.question),
   });
 
-  return merged.slice(0, 6);
+  return final;
 };
 
 export const sanitizeDraftFaqs = (project: LocationProject, faqs: FaqItem[], images: StorageImage[]): FaqItem[] => {
-  const rejected = faqs.filter((faq) => !isValidFaqCandidate(faq.question, faq.answer));
+  logStep3StorageContext("sanitizeDraftFaqs", project, images, { incomingCount: faqs.length });
+
+  const invalid = faqs.filter((faq) => !isValidFaqCandidate(faq.question, faq.answer));
+  if (invalid.length > 0) {
+    debugWarn("sanitizeDraftFaqs", "invalid FAQ candidates removed", invalid.map((f) => f.question));
+  }
+
+  const valid = faqs.filter((faq) => isValidFaqCandidate(faq.question, faq.answer));
+  const { kept, rejected } = partitionFaqsByStep3(valid, project, images);
+
   if (rejected.length > 0) {
-    debugWarn("sanitizeDraftFaqs", "rejected invalid FAQs — will regenerate", rejected);
+    debugWarn("sanitizeDraftFaqs", "saved FAQs failed Step 3 gate — will merge fresh", { count: rejected.length });
+    debugTable("sanitizeDraftFaqs:rejected", rejected);
   }
-  const cleaned = faqs
-    .filter((faq) => isValidFaqCandidate(faq.question, faq.answer))
-    .filter((faq) => faqMatchesFacilityCapabilities(faq, project, images));
-  if (cleaned.length >= 6) {
-    return cleaned.slice(0, 6);
+
+  if (rejected.length === 0 && kept.length >= 6) {
+    debugLog("sanitizeDraftFaqs", "kept saved FAQs (all pass Step 3)", { count: kept.length });
+    return kept.slice(0, 6);
   }
+
   const fresh = generateDraftFaqs(project, images);
-  const merged: FaqItem[] = [...cleaned];
+  const merged: FaqItem[] = [...kept];
   fresh.forEach((faq) => {
     if (merged.length >= 6) return;
-    if (!faqMatchesFacilityCapabilities(faq, project, images)) return;
     if (!merged.some((item) => item.question.toLowerCase() === faq.question.toLowerCase())) {
       merged.push(faq);
     }
   });
-  debugLog("sanitizeDraftFaqs", "result", { kept: merged.length, questions: merged.map((f) => f.question) });
-  return merged.slice(0, 6);
+
+  const gated = filterFaqsByStep3(merged, project, images).slice(0, 6);
+  debugLog("sanitizeDraftFaqs", "done", {
+    keptFromSaved: kept.length,
+    freshGenerated: fresh.length,
+    finalCount: gated.length,
+    questions: gated.map((f) => f.question),
+  });
+  return gated;
 };
 
 export const generateDraftSections = (
@@ -292,9 +352,12 @@ export const generateDraftSections = (
   const { city, state } = project.locationIdentity;
   const place = cityState(project);
   const headings = buildFacilityWireframeHeadings(city, state, place);
-  const featureText = sentenceList(project.existingContent.features, "confirmed facility features");
-  const valueBullets = buildValueBullets(project);
-  const storageTypes = selectedStorageTypes(project, images);
+  const selectedTypes = selectedStorageCategories(project, images);
+  const gatedFeatures = filterFeaturesBySelectedStorageTypes(project.existingContent.features, selectedTypes);
+  const featureText = sentenceList(gatedFeatures, "confirmed facility features");
+  const valueBullets = buildValueBullets(project, images);
+  const storageTypes = selectedTypes;
+  const useCasePhrase = buildStorageUseCasePhrase(selectedTypes);
   const localRefs = mergeLocalReferences(project.localContext);
   const nearby = selectedFacilities(project, facilities);
   const nearbyText = sentenceList(
@@ -309,7 +372,7 @@ export const generateDraftSections = (
     (type) => `${type} at this location helps customers in ${place} store belongings with a layout suited to that storage category.`,
   );
   const typesText = storageTypes.length > 0 ? sentenceList(storageTypes, "flexible storage options") : "flexible storage options";
-  const featureSummary = sentenceList(project.existingContent.features.slice(0, 4), "practical storage amenities");
+  const featureSummary = sentenceList(gatedFeatures.slice(0, 4), "practical storage amenities");
   const section1Intro = buildSection1IntroFallback(
     project.locationIdentity.facilityName,
     place,
@@ -322,8 +385,8 @@ export const generateDraftSections = (
       id: "intro",
       label: "Section 1",
       heading: headings.features,
-      body: `${section1Intro} Customers across ${place} choose us for ${featureText} and flexible storage options for household, business, and vehicle needs.`,
-      bullets: amenitiesForSection1(project.existingContent.features),
+      body: `${section1Intro} Customers across ${place} choose us for ${featureText} and flexible storage options for ${useCasePhrase} needs.`,
+      bullets: amenitiesForSection1(gatedFeatures),
     },
     {
       id: "value",
@@ -339,14 +402,14 @@ export const generateDraftSections = (
       body:
         storageTypes.length > 0
           ? `This location offers ${typesText} to match different storage needs in ${place}. Compare unit sizes, features, and access options to find the layout that works best for your belongings.`
-          : `This location serves ${place} with flexible storage options for household, business, and vehicle storage.`,
+          : `This location serves ${place} with flexible storage options for ${useCasePhrase} needs.`,
       bullets: storageDescriptions.length > 0 ? storageDescriptions : storageTypes,
     },
     {
       id: "local",
       label: "Section 4",
       heading: headings.local,
-      body: buildLocalDraftBody(project, place, localRefs),
+      body: buildLocalDraftBody(project, place, localRefs, images),
       bullets: localRefs.slice(0, 6),
     },
     {
@@ -422,6 +485,7 @@ export const refreshAllDraftContent = (
   images: StorageImage[],
 ): Pick<LocationProject["generated"], "draftTitleTag" | "draftMetaDescription" | "draftSections" | "draftFaqs" | "lastDraftedAt" | "draftBaseline"> => {
   debugLog("refreshAllDraftContent", "start", { projectId: project.id, facility: project.locationIdentity.facilityName });
+  logStep3StorageContext("refreshAllDraftContent", project, images);
   const draftTitleTag = generateDraftTitleTag(project);
   const draftMetaDescription = generateDraftMetaDescription(project);
   const draftSections = generateDraftSections(project, facilities, images);

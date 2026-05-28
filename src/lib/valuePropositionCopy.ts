@@ -1,22 +1,26 @@
 import { shortFacilityLabel } from "./facilityCopy";
-import type { LocationProject } from "../types/storiq";
+import { facilityOffersClimateControlled, facilityOffersVehicleStorage } from "./storageTypeFidelity";
+import type { LocationProject, StorageImage } from "../types/storiq";
 
 const cityState = (project: LocationProject): string =>
   [project.locationIdentity.city, project.locationIdentity.state].filter(Boolean).join(", ") || "the local area";
 
 /** Build "Feature: benefit copy" bullets for Section 2 export (matches client final.md). */
-export const describeFeatureBenefit = (feature: string, project: LocationProject): string => {
+export const describeFeatureBenefit = (feature: string, project: LocationProject, images?: StorageImage[]): string => {
   const place = cityState(project);
   const facility = shortFacilityLabel(project.locationIdentity.facilityName, project.locationIdentity.city);
   const normalized = feature.toLowerCase();
 
-  if (normalized.includes("climate")) {
+  if (normalized.includes("climate") && (!images || facilityOffersClimateControlled(project, images))) {
     return `Protect temperature-sensitive belongings from extreme heat and humidity with climate-controlled storage in ${place}.`;
   }
   if (normalized.includes("gate") || normalized.includes("24/7") || normalized.includes("24 hour")) {
     return `Secure code gate entry makes it easy to reach your unit whenever your schedule allows, day or night.`;
   }
-  if (normalized.includes("vehicle") || normalized.includes("parking")) {
+  if (
+    (normalized.includes("vehicle") || normalized.includes("parking")) &&
+    (!images || facilityOffersVehicleStorage(project, images))
+  ) {
     return `Spacious parking and drive-up access at ${facility} help when your garage, driveway, or lot is full.`;
   }
   if (normalized.includes("drive-up") || normalized.includes("drive up")) {
@@ -44,7 +48,7 @@ export const describeFeatureBenefit = (feature: string, project: LocationProject
   return `${feature} adds practical value for households and businesses comparing storage options in ${place}.`;
 };
 
-export const formatValueBullet = (feature: string, project: LocationProject): string => {
+export const formatValueBullet = (feature: string, project: LocationProject, images?: StorageImage[]): string => {
   const trimmed = feature.trim();
   if (!trimmed) {
     return trimmed;
@@ -56,5 +60,5 @@ export const formatValueBullet = (feature: string, project: LocationProject): st
   }
 
   const label = trimmed.endsWith(":") ? trimmed : `${trimmed}:`;
-  return `${label} ${describeFeatureBenefit(trimmed.replace(/:$/, ""), project)}`;
+  return `${label} ${describeFeatureBenefit(trimmed.replace(/:$/, ""), project, images)}`;
 };

@@ -1,15 +1,19 @@
 import { AlertTriangle, Check, Link as LinkIcon, MinusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { isLinkableStorageType } from "../lib/imageLibrary";
-import { debugLog } from "../lib/debugLog";
+import { getStorageImageById, isLinkableStorageType } from "../lib/imageLibrary";
+import { debugLog, debugTable } from "../lib/debugLog";
+import { selectedStorageCategories } from "../lib/storageTypeFidelity";
 import { useProjects } from "../state/ProjectsContext";
 
 export default function StorageTypeSelector({
   selectedIds,
   onChange,
+  project,
 }: {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  /** When provided, logs Step 3 categories for debug trace. */
+  project?: { selectedStorageImages: string[]; existingContent: { storageTypes: string[] } };
 }) {
   const { images } = useProjects();
   const storageImages = images.filter((image) => image.type === "storage_type");
@@ -17,6 +21,20 @@ export default function StorageTypeSelector({
   const toggle = (id: string) => {
     const next = selectedIds.includes(id) ? selectedIds.filter((selected) => selected !== id) : [...selectedIds, id];
     debugLog("StorageTypeSelector", selectedIds.includes(id) ? "deselected" : "selected", { id, count: next.length });
+    if (project && images) {
+      const categories = selectedStorageCategories(
+        { ...project, selectedStorageImages: next } as import("../types/storiq").LocationProject,
+        images,
+      );
+      debugTable(
+        "StorageTypeSelector:Step3",
+        next.map((imageId) => ({
+          imageId,
+          category: getStorageImageById(images, imageId)?.category ?? "(missing)",
+        })),
+      );
+      debugLog("StorageTypeSelector", "Step 3 categories now", { categories, extractedIgnored: project.existingContent.storageTypes });
+    }
     onChange(next);
   };
 
@@ -35,7 +53,7 @@ export default function StorageTypeSelector({
   return (
     <div className="storiq-stack">
       <p className="storiq-help">
-        Images load from <code className="storiq-code">public/media-library/storage-types/</code>. Add or replace files there, then refresh Master Data if needed.
+        Images load from <code className="storiq-code">public/media-library/storage-types/</code>. Add or replace files there, then refresh Master Data if needed. Generated copy only mentions storage types you select here — types detected in pasted page content are ignored unless selected.
       </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {storageImages.map((image) => {

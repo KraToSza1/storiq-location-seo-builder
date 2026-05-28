@@ -72,7 +72,10 @@ export const logStorIqDebugBanner = (): void => {
   }
   console.groupCollapsed(`${PREFIX} Debug logging ON — full app trace`);
   console.info("Filter DevTools console by: StorIQ");
-  console.info("Scopes: UI:input | UI:paste | UI:copy | UI:button | FLOW# | prepareProject | validationGate | exportChecks");
+  console.info(
+    "Scopes: UI:input | UI:paste | UI:copy | UI:button | FLOW# | prepareProject | generateDraftFaqs | sanitizeDraftFaqs | StorageTypeSelector | validationGate | exportChecks",
+  );
+  console.info("Step 3 gate: filter console by Step3 or generateDraftFaqs:rejected to see blocked RV/climate FAQs.");
   console.info("Production: ?storiq-debug=1 or localStorage.setItem('storiq-debug','1'); location.reload();");
   console.groupEnd();
 };

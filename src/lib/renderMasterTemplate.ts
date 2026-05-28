@@ -18,6 +18,12 @@ import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { getProjectValidation } from "./validators";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
+import {
+  filterFeaturesBySelectedStorageTypes,
+  logStep3StorageContext,
+  partitionFaqsByStep3,
+  selectedStorageCategories,
+} from "./storageTypeFidelity";
 import { formatValueBullet } from "./valuePropositionCopy";
 import { renderSelfStorageJsonLd } from "./templateJsonLd";
 import { buildFaqItems, buildStorageImageAlt, renderFaqJsonLd } from "./templateFaq";
@@ -47,14 +53,18 @@ const listMarkup = (items: string[], fallback: string): string => {
   return values.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n");
 };
 
-const renderValueList = (project: LocationProject): string => {
+const renderValueList = (project: LocationProject, images: StorageImage[]): string => {
   const valueDraft = findDraftSection(project, "value");
-  const sourceBullets = valueDraft?.bullets?.length ? valueDraft.bullets : project.existingContent.features;
+  const gatedFeatures = filterFeaturesBySelectedStorageTypes(
+    project.existingContent.features,
+    selectedStorageCategories(project, images),
+  );
+  const sourceBullets = valueDraft?.bullets?.length ? valueDraft.bullets : gatedFeatures;
   const bullets = valueBulletsForSection2(sourceBullets);
 
   return bullets
     .map((bullet) => {
-      const formatted = formatValueBullet(bullet, project);
+      const formatted = formatValueBullet(bullet, project, images);
       const colonIndex = formatted.indexOf(":");
       if (colonIndex > 0) {
         return `<li><strong>${escapeHtml(formatted.slice(0, colonIndex + 1))}</strong> ${escapeHtml(formatted.slice(colonIndex + 1).trim())}</li>`;
@@ -142,9 +152,9 @@ const renderNearbyCard = (
       </article>`;
 };
 
-const renderLocalParagraphs = (project: LocationProject): string => {
+const renderLocalParagraphs = (project: LocationProject, images: StorageImage[]): string => {
   const localDraft = findDraftSection(project, "local");
-  const localBody = exportDraftBody(localDraft?.body, buildLocalSectionDraftBody(project));
+  const localBody = exportDraftBody(localDraft?.body, buildLocalSectionDraftBody(project, images));
 
   return localBody
     .split(/\n{2,}/)
@@ -200,7 +210,9 @@ export const renderStoragelyHtml = (
   const { city, state } = project.locationIdentity;
   const facilityName = project.locationIdentity.facilityName || "My Garage Self Storage";
   const facilityNameMarked = formatFacilityNameWithMark(facilityName);
-  const section1Amenities = amenitiesForSection1(project.existingContent.features);
+  const section1Amenities = amenitiesForSection1(
+    filterFeaturesBySelectedStorageTypes(project.existingContent.features, selectedStorageCategories(project, images)),
+  );
   const storageCardCount = selectedStorageImages(project, images).length;
   const storageGridStyle = buildStorageGridStyle(storageCardCount);
   const featureSummary =
@@ -210,7 +222,15 @@ export const renderStoragelyHtml = (
   const featuresDraft = findDraftSection(project, "intro");
   const valueDraft = findDraftSection(project, "value");
   const nearbyDraft = findDraftSection(project, "nearby");
+  logStep3StorageContext("renderHtml", project, images, { phase: "start" });
   const faqItems = buildFaqItems(project, images);
+  const faqGate = partitionFaqsByStep3(project.generated.draftFaqs, project, images);
+  if (faqGate.rejected.length > 0) {
+    debugWarn("renderHtml", "saved draft FAQs had Step 3 violations — export uses gated list only", {
+      rejected: faqGate.rejected,
+      exportCount: faqItems.length,
+    });
+  }
   const faqJsonLd = renderFaqJsonLd(project, images);
   const selfStorageJsonLd = renderSelfStorageJsonLd(project, facilities, images, publishAssetBaseUrl);
   const nearby = selectedFacilities(project, facilities);
@@ -308,7 +328,7 @@ ${MASTER_TEMPLATE_CSS}
     <h2>${escapeHtml(headings.value)}</h2>
     <p>${escapeHtml(valueBody)}</p>
     <ul class="facility-list facility-list--single facility-features">
-      ${renderValueList(project)}
+      ${renderValueList(project, images)}
     </ul>
   </section>
 
@@ -323,7 +343,7 @@ ${MASTER_TEMPLATE_CSS}
   <!-- SECTION 4: Local Content -->
   <section class="facility-section facility-section--light">
     <h2>${escapeHtml(headings.local)}</h2>
-    ${renderLocalParagraphs(project)}
+    ${renderLocalParagraphs(project, images)}
   </section>
 
   <!-- SECTION 5: Nearby Locations -->
