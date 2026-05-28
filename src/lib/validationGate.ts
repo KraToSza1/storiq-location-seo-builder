@@ -592,24 +592,27 @@ export const runValidationGate = (input: ValidationGateInput): ValidationGateChe
   );
   const dupArea = areaServed.length !== new Set(areaServed).size;
   const street = project?.existingContent.address ?? (selfStorage as { address?: { streetAddress?: string } })?.address?.streetAddress ?? "";
-  push(
-    !dupArea &&
-      mapGeo &&
-      typeof schemaLat === "number" &&
-      typeof schemaLng === "number" &&
-      Math.abs(schemaLat - mapGeo.latitude) < 0.000001 &&
-      Math.abs(schemaLng - mapGeo.longitude) < 0.000001 &&
-      schemaPhone === telDigits
-      ? pass("J3", "SelfStorage NAP + geo", "schema", "Telephone, geo, and areaServed are consistent with inputs and map embed.")
-      : fail(
-          "J3",
-          "SelfStorage NAP + geo",
-          "schema",
-          dupArea
-            ? "Duplicate areaServed city entries."
-            : `Geo/schema/phone mismatch (schema ${schemaPhone} vs CTA ${telDigits}). Address baseline: ${street.slice(0, 40)}.`,
-        ),
-  );
+  const geoMismatch =
+    mapGeo &&
+    typeof schemaLat === "number" &&
+    typeof schemaLng === "number" &&
+    (Math.abs(schemaLat - mapGeo.latitude) >= 0.000001 || Math.abs(schemaLng - mapGeo.longitude) >= 0.000001);
+  const phoneMismatch = schemaPhone.length > 0 && telDigits.length > 0 && schemaPhone !== telDigits;
+  const j3Ok = !dupArea && Boolean(mapGeo) && !geoMismatch && !phoneMismatch;
+  const j3Message = j3Ok
+    ? "Telephone, geo, and areaServed are consistent with inputs and map embed."
+    : [
+        dupArea ? "Duplicate areaServed city entries." : "",
+        !mapGeo
+          ? "Map embed has no !3d/!2d coordinates — use Share → Embed from Google Maps, or save the project again after setting Storagely URL (auto-upgrades when coords are known)."
+          : "",
+        geoMismatch ? `Schema geo (${schemaLat}, ${schemaLng}) does not match map embed (${mapGeo?.latitude}, ${mapGeo?.longitude}).` : "",
+        phoneMismatch ? `Phone mismatch: JSON-LD ${schemaPhone} vs page CTA ${telDigits}. Fix phone in Step 2 and Refresh All.` : "",
+      ]
+        .filter(Boolean)
+        .join(" ") || `Address baseline: ${street.slice(0, 40)}.`;
+
+  push(j3Ok ? pass("J3", "SelfStorage NAP + geo", "schema", j3Message) : fail("J3", "SelfStorage NAP + geo", "schema", j3Message));
 
   // --- G1 Landmark collisions ---
   const section4 = sectionSlice(html, 4).replace(/<!--[\s\S]*?-->/g, "");

@@ -6,7 +6,10 @@ import {
   applyMapDisplayTypeToIframeCode,
   buildGoogleMapsFromProject,
   getMapPreviewSrc,
+  isExportQualityMapEmbedSrc,
+  isLegacyMapEmbedSrc,
   resolveMapDisplayType,
+  upgradeLegacyMapEmbedIfPossible,
   type MapDisplayType,
 } from "../lib/googleMapsEmbed";
 import { parseGoogleMapsIframe } from "../lib/validators";
@@ -71,12 +74,23 @@ export default function GoogleMapsEmbedInput({
     }
   }, [suggested.query, suggested.iframeCode, suggested.isValid, project.googleMaps.iframeCode, onChange]);
 
+  const exportQualityEmbed = parsed.detectedSrc ? isExportQualityMapEmbedSrc(parsed.detectedSrc) : false;
+  const legacyEmbed = parsed.detectedSrc ? isLegacyMapEmbedSrc(parsed.detectedSrc) : false;
+
   const statusItems = [
     { label: "Valid iframe", ok: parsed.isValid },
+    { label: "Export-quality embed (!3d/!2d)", ok: exportQualityEmbed },
     { label: 'loading="lazy"', ok: parsed.hasLazyLoading },
     { label: "title", ok: parsed.hasTitle },
     { label: "referrerpolicy", ok: parsed.hasReferrerPolicy },
   ];
+
+  const applyExportQualityEmbed = () => {
+    const upgraded = upgradeLegacyMapEmbedIfPossible(project);
+    if (upgraded.googleMaps.iframeCode !== project.googleMaps.iframeCode) {
+      applyIframe(upgraded.googleMaps.iframeCode, mapType);
+    }
+  };
 
   return (
     <div className="storiq-stack">
@@ -113,6 +127,17 @@ export default function GoogleMapsEmbedInput({
           For export quality, switch Google Maps to your preferred view, then Share → Embed a map. The dropdown also adjusts generated and pasted embeds when possible.
         </p>
       </div>
+
+      {legacyEmbed ? (
+        <div className="storiq-alert storiq-alert-warning flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm" style={{ margin: 0 }}>
+            Basic <code className="storiq-code">maps?q=</code> embed blocks export. Use Share → Embed from Google Maps, or click Fix for coordinates when this city is in the facility library.
+          </p>
+          <button type="button" onClick={applyExportQualityEmbed} className="storiq-btn storiq-btn-secondary storiq-btn-sm">
+            Fix embed for export
+          </button>
+        </div>
+      ) : null}
 
       <section className="storiq-map-preview-wrap" aria-label="Google Maps preview">
         <h3 className="storiq-label mb-2">Live map preview</h3>

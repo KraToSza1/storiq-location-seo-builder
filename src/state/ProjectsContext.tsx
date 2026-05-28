@@ -31,6 +31,7 @@ import { buildAiPrompt } from "../lib/promptBuilder";
 import { resolvePublishAssetBaseUrl } from "../lib/assetUrls";
 import { cloneProject, defaultSettings, mergeWithProjectDefaults } from "../lib/projectDefaults";
 import { runSEOAudit } from "../lib/seoAudit";
+import { upgradeLegacyMapEmbedIfPossible } from "../lib/googleMapsEmbed";
 import { renderFaqJsonLd, renderStoragelyHtml } from "../lib/templateRenderer";
 import { debugLog, debugWarn } from "../lib/debugLog";
 import { debugFlow, logStorageWrite } from "../lib/debugUi";
@@ -106,6 +107,7 @@ export const prepareProject = (
   });
 
   const publishAssetBaseUrl = resolvePublishAssetBaseUrl(settings);
+  project = upgradeLegacyMapEmbedIfPossible(project);
   const incomingGenerated = project.generated;
   const validation = getProjectValidation(project, facilities, images);
   if (validation.hardFails.length > 0) {

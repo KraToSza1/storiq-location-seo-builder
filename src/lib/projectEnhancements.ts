@@ -1,4 +1,4 @@
-import { buildGoogleMapsIframeMarkup, resolveMapDisplayType } from "./googleMapsEmbed";
+import { buildGoogleMapsIframeForProject, resolveMapDisplayType } from "./googleMapsEmbed";
 import { parseGoogleMapsIframe } from "./validators";
 import { extractStoragelyUrlsFromContent } from "./contentExtraction";
 import { getStorageImageById } from "./imageLibrary";
@@ -57,11 +57,7 @@ export const enhanceProjectFromLibraries = (
 
   if (!next.googleMaps.iframeCode.trim() && next.existingContent.address.trim()) {
     const mapType = resolveMapDisplayType(next.googleMaps.mapType);
-    const iframeCode = buildGoogleMapsIframeMarkup(
-      next.existingContent.address,
-      next.locationIdentity.facilityName || "Facility map",
-      mapType,
-    );
+    const iframeCode = buildGoogleMapsIframeForProject(next, next.locationIdentity.facilityName || "Facility map");
     const parsed = parseGoogleMapsIframe(iframeCode);
     next = {
       ...next,
