@@ -18,6 +18,7 @@ import { MASTER_TEMPLATE_CSS } from "./masterTemplateCss";
 import { getProjectValidation } from "./validators";
 import { exportDraftBody, isEditorInstruction } from "./templateDraftUtils";
 import { resolveStorageDestinationUrl } from "./storageDestinationUrls";
+import { formatHoursForCopy } from "./hoursCopy";
 import {
   filterFeaturesBySelectedStorageTypes,
   logStep3StorageContext,
@@ -379,8 +380,8 @@ ${MASTER_TEMPLATE_CSS}
         <h2>${escapeHtml(headings.map)}</h2>
         ${napBlock}
         ${renderMapDirections(project)}
-        ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(project.existingContent.accessHours)}</p>` : ""}
-        ${project.existingContent.officeHours ? `<p><strong>Office Hours:</strong> ${escapeHtml(project.existingContent.officeHours)}</p>` : ""}
+        ${project.existingContent.accessHours ? `<p><strong>Access Hours:</strong> ${escapeHtml(formatHoursForCopy(project.existingContent.accessHours))}</p>` : ""}
+        ${project.existingContent.officeHours ? `<p><strong>Office Hours:</strong> ${escapeHtml(formatHoursForCopy(project.existingContent.officeHours))}</p>` : ""}
         ${phone ? `<a href="${escapeHtml(telHref)}" class="cta-button">Call ${escapeHtml(phone)}</a>` : project.locationIdentity.storagelyPageUrl?.trim() ? `<a href="${safeUrl(project.locationIdentity.storagelyPageUrl)}" class="cta-button"${externalLinkAttrs(project.locationIdentity.storagelyPageUrl)}>View Units</a>` : ""}
       </div>
     </div>

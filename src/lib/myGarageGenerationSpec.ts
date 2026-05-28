@@ -170,7 +170,7 @@ export const sanitizeGoogleMapsIframe = (iframeCode: string, city: string, state
   }
 
   const srcMatch = tag.match(/\ssrc=(["'])([^"']+)\1/i);
-  if (srcMatch) {
+  if (srcMatch && /maps\.google\.com\/maps\?q=/i.test(srcMatch[2])) {
     const styledSrc = applyMapDisplayType(srcMatch[2], resolveMapDisplayType(mapType));
     tag = tag.replace(srcMatch[0], ` src=${srcMatch[1]}${styledSrc}${srcMatch[1]}`);
   }

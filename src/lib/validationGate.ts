@@ -528,18 +528,26 @@ export const runValidationGate = (input: ValidationGateInput): ValidationGateChe
   );
 
   const map = parseGoogleMapsIframe(mapIframe);
-  const isEmbedPb = /google\.com\/maps\/embed/i.test(map.detectedSrc) && /!3d/i.test(map.detectedSrc);
   const isLegacyQueryEmbed = /maps\.google\.com\/maps\?q=/i.test(map.detectedSrc);
+  const isMalformedEmbed = /!1s0x0%3A0x0/i.test(map.detectedSrc);
+  const isOfficialEmbed =
+    /google\.com\/maps\/embed\?pb=/i.test(map.detectedSrc) &&
+    /!3d/i.test(map.detectedSrc) &&
+    /!2d/i.test(map.detectedSrc) &&
+    (/!1s0x[0-9a-f]+%3A0x[0-9a-f]+/i.test(map.detectedSrc) || /!2s[^!%]+/i.test(map.detectedSrc)) &&
+    !isMalformedEmbed;
   push(
-    map.isValid && !isLegacyQueryEmbed
-      ? pass("T-map-embed", "Google Maps embed quality", "structural", isEmbedPb ? "Proper maps/embed iframe with coordinates." : "Map iframe present.")
+    map.isValid && isOfficialEmbed
+      ? pass("T-map-embed", "Google Maps embed quality", "structural", "Official Google Maps Share → Embed iframe with place ID.")
       : fail(
           "T-map-embed",
           "Google Maps embed quality",
           "structural",
           isLegacyQueryEmbed
-            ? "Replace basic maps?q= embed with the full Google Maps Embed iframe (pb= coordinates)."
-            : "Valid Google Maps iframe required.",
+            ? "Paste the official iframe from Google Maps Share → Embed a map (do not use auto-generated maps?q= URLs)."
+            : isMalformedEmbed
+              ? "Embed uses invalid place id (0x0:0x0). Replace with the official Google Maps Share → Embed iframe for this facility."
+              : "Paste the complete official Google Maps Share → Embed iframe (immutable pb= URL with business place ID).",
           map.detectedSrc.slice(0, 120),
         ),
   );

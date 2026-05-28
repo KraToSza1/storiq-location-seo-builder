@@ -25,6 +25,7 @@ import {
   partitionFaqsByStep3,
   selectedStorageCategories,
 } from "./storageTypeFidelity";
+import { buildOfficeAndAccessHoursAnswer } from "./hoursCopy";
 import { formatValueBullet } from "./valuePropositionCopy";
 import type { DraftContentBaseline, DraftSection, FaqItem, LocationProject, NearbyFacility, StorageImage } from "../types/storiq";
 
@@ -185,8 +186,15 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
   const localRefs = mergeLocalReferences(project.localContext);
   const localRefsText = localRefs.length > 0 ? sentenceList(localRefs, placeLabel) : placeLabel;
   const address = project.existingContent.address || "the address listed on this page";
-  const officeHours = project.existingContent.officeHours || "available by phone — contact us for current office hours";
-  const accessHours = project.existingContent.accessHours || "available by phone — contact us for gate and access hours";
+  const officeHours = project.existingContent.officeHours.trim();
+  const accessHours = project.existingContent.accessHours.trim();
+  const hoursAnswer =
+    officeHours || accessHours
+      ? buildOfficeAndAccessHoursAnswer(
+          officeHours || "available by phone — contact us for current office hours",
+          accessHours || "available by phone — contact us for gate and access hours",
+        )
+      : "Contact our team for current office and gate access hours.";
   const hasClimate = facilityOffersClimateControlled(project, images);
   const hasVehicle = facilityOffersVehicleStorage(project, images);
   debugLog("buildFacilityFeatureFaqs", "template FAQ flags", {
@@ -205,7 +213,7 @@ const buildFacilityFeatureFaqs = (project: LocationProject, images: StorageImage
     },
     {
       question: `What are the office and access hours in ${placeLabel}?`,
-      answer: `Office hours are ${officeHours} and access hours are ${accessHours}.`,
+      answer: hoursAnswer,
     },
     {
       question: `Where is this facility located in ${placeLabel}?`,

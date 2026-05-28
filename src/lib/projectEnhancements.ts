@@ -1,5 +1,3 @@
-import { buildGoogleMapsIframeForProject, resolveMapDisplayType } from "./googleMapsEmbed";
-import { parseGoogleMapsIframe } from "./validators";
 import { extractStoragelyUrlsFromContent } from "./contentExtraction";
 import { getStorageImageById } from "./imageLibrary";
 import { getNearbySelectionLimits, suggestNearbyFacilityIds } from "./nearbySuggestions";
@@ -54,21 +52,6 @@ export const enhanceProjectFromLibraries = (
   images: StorageImage[],
 ): LocationProject => {
   let next = { ...project };
-
-  if (!next.googleMaps.iframeCode.trim() && next.existingContent.address.trim()) {
-    const mapType = resolveMapDisplayType(next.googleMaps.mapType);
-    const iframeCode = buildGoogleMapsIframeForProject(next, next.locationIdentity.facilityName || "Facility map");
-    const parsed = parseGoogleMapsIframe(iframeCode);
-    next = {
-      ...next,
-      googleMaps: {
-        iframeCode,
-        detectedSrc: parsed.detectedSrc,
-        isValid: parsed.isValid,
-        mapType,
-      },
-    };
-  }
 
   if (next.selectedStorageImages.length === 0 && next.existingContent.storageTypes.length > 0) {
     const ids = matchStorageImageIds(next.existingContent.storageTypes, images);
